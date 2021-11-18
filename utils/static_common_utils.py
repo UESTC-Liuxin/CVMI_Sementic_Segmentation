@@ -3,7 +3,7 @@ Author: Liu Xin
 Date: 2021-11-13 19:11:06
 LastEditors: Liu Xin
 LastEditTime: 2021-11-13 19:12:09
-Description: 与任务无关的工具库
+Description: 静态工具库
 FilePath: /CVMI_Sementic_Segmentation/utils/static_common_utils.py
 '''
 

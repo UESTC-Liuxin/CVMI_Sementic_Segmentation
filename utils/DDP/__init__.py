@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-13 19:46:55
 LastEditors: Liu Xin
-LastEditTime: 2021-11-13 19:50:54
+LastEditTime: 2021-11-17 16:52:41
 Description: DDP utils
 FilePath: /CVMI_Sementic_Segmentation/utils/DDP/__init__.py
 '''
@@ -21,27 +21,37 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 def setup_distributed(backend="nccl", port=None):
     """
-    @description  :Initialize slurm distributed training environment. (from mmcv) 
-    @param  :
-    @Returns  :
+    Initialize distributed training environment.
+    support both slurm and torch.distributed.launch
     """
-    proc_id = int(os.environ["SLURM_PROCID"])
-    ntasks = int(os.environ["SLURM_NTASKS"])
-    node_list = os.environ["SLURM_NODELIST"]
     num_gpus = torch.cuda.device_count()
-    torch.cuda.set_device(proc_id % num_gpus)
-    addr = subprocess.getoutput(
-        f"scontrol show hostname {node_list} | head -n1")
-    # specify master port
-    if port is not None:
-        os.environ["MASTER_PORT"] = str(port)
-    elif "MASTER_PORT" in os.environ:
-        pass  # use MASTER_PORT in the environment variable
+
+    if "SLURM_JOB_ID" in os.environ:
+        rank = int(os.environ["SLURM_PROCID"])
+        world_size = int(os.environ["SLURM_NTASKS"])
+        node_list = os.environ["SLURM_NODELIST"]
+        addr = subprocess.getoutput(
+            f"scontrol show hostname {node_list} | head -n1")
+        # specify master port
+        if port is not None:
+            os.environ["MASTER_PORT"] = str(port)
+        elif "MASTER_PORT" in os.environ:
+            pass  # use MASTER_PORT in the environment variable
+        else:
+            os.environ["MASTER_PORT"] = "29500"
+        if "MASTER_ADDR" not in os.environ:
+            os.environ["MASTER_ADDR"] = addr
+        os.environ["WORLD_SIZE"] = str(world_size)
+        os.environ["LOCAL_RANK"] = str(rank % num_gpus)
+        os.environ["RANK"] = str(rank)
     else:
-        os.environ["MASTER_PORT"] = "29500"
-    if "MASTER_ADDR" not in os.environ:
-        os.environ["MASTER_ADDR"] = addr
-    os.environ["WORLD_SIZE"] = str(ntasks)
-    os.environ["LOCAL_RANK"] = str(proc_id % num_gpus)
-    os.environ["RANK"] = str(proc_id)
-    dist.init_process_group(backend=backend)
+        rank = int(os.environ["RANK"])
+        world_size = int(os.environ["WORLD_SIZE"])
+
+    torch.cuda.set_device(rank % num_gpus)
+
+    dist.init_process_group(
+        backend=backend,
+        world_size=world_size,
+        rank=rank,
+    )

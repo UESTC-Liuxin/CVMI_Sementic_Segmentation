@@ -1,57 +1,53 @@
 Descriptions:
   name: base_segmentation
   version: v1.0
-  ouput_path: 
+  ouput_path:
 
 Global:
+  distributed: true
   gpus: 3
   batch_size: 100
   learning_rate: 1e-5
   max_epoch: 30
 
-  data:
-    dataset: 
+  Data:
+    dataset:
       name: skmt
-      num_classes: -1
-      image_size: 512
+      num_classes: &num_classes 11
+      image_size: &image_size 256
       type: rgb
     transforms:
       - RandomHorizontalFlip:
       - RandomScaleCrop:
-        base_size: 
-        crop_size: 512
-      - FixScaleCrop: 
-        crop_size: 512
+        base_size: *image_size
+        crop_size: *image_size
+      - FixScaleCrop:
+        crop_size: *image_size
       - RandomRotate:
-        - 10
+          - 10
       - RandomGaussianBlur:
       - Normalize:
-        - [0.485, 0.456, 0.406]
-        - [0.229, 0.224, 0.225]
+          - [0.485, 0.456, 0.406]
+          - [0.229, 0.224, 0.225]
       - ToTensor:
 
-# 
+# config network and losses
 Model:
-  # set backbone
   root_path: /home/liuxin/Documents/CVMI_Sementic_Segmentation/configs
   sync_BN: true
-  back_bone:
+  backbone:
     name: resnet50
-    in_channel: 3
-    out_channel: 2048
+    output_stride: 32
   neck:
-    name: FPN
-    in_channel: 2048
-    out_channel: 1024
+    name: Identity
   decode_head:
-    name: unet
-    in_channel: 1024
+    name: Unet
+    in_channel: 2048
+    num_classes: *num_classes
+    factors: [2, 2, 4, 2]
+  match_block:
+    image_size: *image_size
+    type: "bilinear"
 
-    criterions:
-      name: compose_loss
-      
-
-  
-    
-
-
+  criterions:
+    name: compose_loss

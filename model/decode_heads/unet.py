@@ -2,13 +2,16 @@
 Author: Liu Xin
 Date: 2021-11-15 15:40:31
 LastEditors: Liu Xin
-LastEditTime: 2021-11-15 16:59:09
+LastEditTime: 2021-11-17 20:20:19
 Description: base unet decode head
 FilePath: /CVMI_Sementic_Segmentation/model/decode_heads/unet.py
 '''
+from re import S
+from numpy.lib.type_check import imag
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ..builder import DECODE_HEAD
 
 
 class DoubleConv(nn.Module):
@@ -85,24 +88,33 @@ class OutConv(nn.Module):
         return self.conv(x)
 
 
-class UNet(nn.Module):
-    def __init__(self, in_channels, n_classes, bilinear=True):
-        super(UNet, self).__init__()
-        self.n_channels = n_channels
-        self.n_classes = n_classes
+@DECODE_HEAD.register_module("Unet")
+class Unet(nn.Module):
+    def __init__(self, in_channel, num_classes, factors,  bilinear=False):
+        super(Unet, self).__init__()
+        self.in_channel = in_channel
+        self.num_classes = num_classes
         self.bilinear = bilinear
-        factor = 2 if bilinear else 1
-        self.up1 = Up(in_channels, 512 // factor, bilinear)
-        self.up2 = Up(512, 256 // factor, bilinear)
-        self.up3 = Up(256, 128 // factor, bilinear)
-        self.up4 = Up(128, 64, bilinear)
-        self.outc = OutConv(64, n_classes)
+        self.ups = nn.ModuleList()
+        out_channel = in_channel
+        for i in range(4):
+            out_channel = out_channel // factors[i]
+            self.ups.append(Up(in_channel, out_channel, bilinear))
+            in_channel = out_channel
+        self.outc = OutConv(out_channel, num_classes)
 
     def forward(self, features):
-        [x1, x2, x3, x4, x5] = features
-        x = self.up1(x5, x4)
-        x = self.up2(x, x3)
-        x = self.up3(x, x2)
-        x = self.up4(x, x1)
+        [x5, x4, x3, x2, x1, x0] = features
+        x = self.ups[0](x5, x4)
+        x = self.ups[1](x, x3)
+        x = self.ups[2](x, x2)
+        x = self.ups[3](x, x1)
         out = self.outc(x)
+
         return out
+
+
+if __name__ == "__main__":
+    image = torch.randn(4, 3, 512, 512)
+    model = UNet(3, 11)
+    model(image)

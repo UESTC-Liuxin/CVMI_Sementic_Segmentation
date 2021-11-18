@@ -9,16 +9,15 @@
 import torch
 import torch.nn as nn
 
-from criterion.WCELoss import WCELoss
-from criterion.FocalLoss import FocalLoss
-from criterion.DiceLoss import DiceLoss
-from criterion.IouLoss import IouLoss
-from criterion.LabelSmoothCELoss import LabelSmoothCrossEntropy2D
-from criterion.ComposeLoss import ComposeLoss,CaculateTLoss
+from model.criterions.WCELoss import WCELoss
+from model.criterions.FocalLoss import FocalLoss
+from model.criterions.DiceLoss import DiceLoss
+from model.criterions.IouLoss import IouLoss
+from model.criterions.LabelSmoothCELoss import LabelSmoothCrossEntropy2D
+from model.criterions.ComposeLoss import ComposeLoss, CaculateTLoss
 
 
-
-def build_criterion(auxiliary=None,trunk=None):
+def build_criterion(auxiliary=None, trunk=None):
     """
     define losses by a dict
     @example:
@@ -40,30 +39,29 @@ def build_criterion(auxiliary=None,trunk=None):
     :param trunk:
     :return:
     """
-    trunk_losses=[]
+    trunk_losses = []
     for mode, kwargs in trunk['losses'].items():
         trunk_losses.append(build_loss(mode=mode, **kwargs))
 
     trunk_loss_weights = trunk['loss_weights']
-    assert len(trunk_losses)==len(trunk_loss_weights)
-    trunk_compose=ComposeLoss(trunk_losses,trunk_loss_weights)
+    assert len(trunk_losses) == len(trunk_loss_weights)
+    trunk_compose = ComposeLoss(trunk_losses, trunk_loss_weights)
 
     if(auxiliary is not None):
-        auxiliary_losses=[]
-        for mode,kwargs in auxiliary['losses'].items():
-            auxiliary_losses.append(build_loss(mode=mode,**kwargs))
-        auxiliary_loss_weights=auxiliary['loss_weights']
-        assert len(auxiliary_losses)==len(auxiliary_loss_weights)
-        auxiliary_compose=ComposeLoss(auxiliary_losses,auxiliary_loss_weights)
-        return CaculateTLoss(trunk_compose,auxiliary_compose)
+        auxiliary_losses = []
+        for mode, kwargs in auxiliary['losses'].items():
+            auxiliary_losses.append(build_loss(mode=mode, **kwargs))
+        auxiliary_loss_weights = auxiliary['loss_weights']
+        assert len(auxiliary_losses) == len(auxiliary_loss_weights)
+        auxiliary_compose = ComposeLoss(
+            auxiliary_losses, auxiliary_loss_weights)
+        return CaculateTLoss(trunk_compose, auxiliary_compose)
 
     else:
         return CaculateTLoss(trunk_compose)
 
 
-
-
-def build_loss(mode,*args,**kwargs):
+def build_loss(mode, *args, **kwargs):
     """build a loss  by mode
 
     :param mode:loss type,str:"ce","focal","iou",etc
@@ -71,23 +69,24 @@ def build_loss(mode,*args,**kwargs):
     :param kwargs:
     :return:
     """
-    if(mode=='ce'):
-        return WCELoss(*args,**kwargs)
-    elif(mode =='focal'):
-        return FocalLoss(*args,**kwargs)
-    elif(mode =='iou'):
-        return IouLoss(*args,**kwargs)
-    elif(mode=='dice'):
-        return DiceLoss(*args,**kwargs)
-    elif(mode=='smoothce'):
-        return LabelSmoothCrossEntropy2D(*args,**kwargs)
+    if(mode == 'ce'):
+        return WCELoss(*args, **kwargs)
+    elif(mode == 'focal'):
+        return FocalLoss(*args, **kwargs)
+    elif(mode == 'iou'):
+        return IouLoss(*args, **kwargs)
+    elif(mode == 'dice'):
+        return DiceLoss(*args, **kwargs)
+    elif(mode == 'smoothce'):
+        return LabelSmoothCrossEntropy2D(*args, **kwargs)
     else:
         raise NotImplementedError
 
+
 if __name__ == "__main__":
 
-    img=torch.rand(2,6,512,512)
-    gt =torch.randint(6,(2,512,512)).long()
+    img = torch.rand(2, 6, 512, 512)
+    gt = torch.randint(6, (2, 512, 512)).long()
     CRITERION = dict(
         auxiliary=dict(
             losses=dict(
@@ -104,6 +103,5 @@ if __name__ == "__main__":
             loss_weights=[0.5, 0.5]
         )
     )
-    criterion=build_criterion(**CRITERION)
-    print(criterion({'auxiliary':img,'trunk':img},gt))
-
+    criterion = build_criterion(**CRITERION)
+    print(criterion({'auxiliary': img, 'trunk': img}, gt))
