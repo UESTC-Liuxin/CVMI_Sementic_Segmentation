@@ -1,15 +1,11 @@
-# -*- encoding: utf-8 -*-
 '''
-@File    :   meta_transforms.py
-@Author  :   Liu Xin 
-@CreateTime    :   2021/11/15 17:04:20
-@Version :   1.0
-@Contact :   xinliu1996@163.com
-@License :   (C)Copyright 2020-2025 CVMI(UESTC)
-@Desc    :   None
+Author: Liu Xin
+Date: 2021-11-18 09:58:40
+LastEditors: Liu Xin
+LastEditTime: 2021-11-19 19:38:07
+Description: file content
+FilePath: /CVMI_Sementic_Segmentation/dataloader/transforms_utils/meta_transforms.py
 '''
-
-
 import torch
 
 

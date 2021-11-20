@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-16 10:44:06
 LastEditors: Liu Xin
-LastEditTime: 2021-11-17 16:26:04
+LastEditTime: 2021-11-19 21:23:59
 Description: regist module by using decorators(detail by:https://blog.csdn.net/qq_20549061/article/details/107883272)
 FilePath: /CVMI_Sementic_Segmentation/utils/registry.py
 '''
@@ -57,3 +57,15 @@ class Registry:
                 module_class=cls, module_name=name, force=force)
             return cls
         return _register
+
+
+def build(cfg, registry: Registry):
+    """
+    @description  :
+    @param  :
+    @Returns  :
+    """
+    obj_cls = registry.module_dict[cfg["name"]]
+    cfg = cfg.copy()
+    cfg.pop("name")
+    return obj_cls(**cfg)

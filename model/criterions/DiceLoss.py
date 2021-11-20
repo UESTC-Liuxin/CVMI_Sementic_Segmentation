@@ -13,8 +13,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 import numpy as np
+from model.builder import CRITERION
+
+
+
 
 def make_one_hot(input, num_classes):
     """Convert class index tensor to one hot encoding tensor.
@@ -29,12 +32,10 @@ def make_one_hot(input, num_classes):
     shape[1] = num_classes
     shape = tuple(shape)
     result = torch.zeros(shape)
-
     result = result.scatter_(1, input.cpu(), 1).long().cuda()
-
-
     return result
 
+@CRITERION.register_module("BinaryDiceLoss")
 class BinaryDiceLoss(nn.Module):
     """Dice loss of binary class
     Args:
@@ -77,6 +78,9 @@ class BinaryDiceLoss(nn.Module):
             raise Exception('Unexpected reduction {}'.format(self.reduction))
 
 
+
+
+@CRITERION.register_module("DiceLoss")
 class DiceLoss(nn.Module):
     """Dice loss, need one hot encode input
     Args:

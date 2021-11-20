@@ -14,17 +14,15 @@ from __future__ import print_function, division
 import os
 from PIL import Image
 import numpy as np
-from random import shuffle
 import collections
-import torch
 from torch.utils.data import Dataset
-from mypath import Path
 from torchvision import transforms
 from dataloader.transforms_utils import custom_transforms as tr
 from dataloader.transforms_utils import augment as au
 from dataloader.transforms_utils import meta_transforms as meta_t
+from dataloader.builder import DATASET
 
-
+@DATASET.register_module("skmt")
 class SkmtDataSet(Dataset):
     """
     PascalVoc dataset
@@ -46,51 +44,38 @@ class SkmtDataSet(Dataset):
     # NUM_CLASSES = len(CLASSES)
     NUM_CLASSES = 11
 
-    def __init__(self,
-                 args,
-                 base_dir=Path.db_root_dir('skmt'),
-                 split='train',
-                 ):
+    def __init__(self, dataset_root, transforms, split='train', **kwargs):
         """
         :param base_dir: path to VOC dataset directory
         :param split: train/val
         :param transform: transform to apply
         """
         super().__init__()
-        self._base_dir = base_dir
-        self._image_dir = os.path.join(self._base_dir, 'JPEGImages')
-        self._cat_dir = os.path.join(self._base_dir, 'SegmentationClass')
-
-        if isinstance(split, str):
-            self.split = [split]
-        else:
-            split.sort()
-            self.split = split
-
-        self.args = args
-        _splits_dir = os.path.join(self._base_dir, 'ImageSets')
+        self._dataset_root = dataset_root
+        self.transforms = transforms
+        self.split = split
+        self._image_dir = os.path.join(self._dataset_root, 'JPEGImages')
+        self._mask_dir = os.path.join(self._dataset_root, 'SegmentationClass')
+        _splits_dir = os.path.join(self._dataset_root, 'ImageSets')
 
         self.im_ids = []
         self.images = []
-        self.categories = []
+        self.masks = []
 
-        for splt in self.split:
-            with open(os.path.join(os.path.join(_splits_dir, splt + '.txt')), "r") as f:
-                lines = f.read().splitlines()
-            for ii, line in enumerate(lines):
-                _image = os.path.join(self._image_dir, line + ".jpg")
-                _cat = os.path.join(self._cat_dir, line + ".png")
-                # print(_image)
-                assert os.path.isfile(_image)
-                assert os.path.isfile(_cat)
-                self.im_ids.append(line)
-                self.images.append(_image)
-                self.categories.append(_cat)
-
-        assert (len(self.images) == len(self.categories))
-
-        # Display stats
-        print('Number of images in {}: {:d}'.format(splt, len(self.images)))
+        # 读入
+        with open(os.path.join(os.path.join(_splits_dir, split + '.txt')), "r") as f:
+            lines = f.read().splitlines()
+        for ii, line in enumerate(lines):
+            _image = os.path.join(self._image_dir, line + ".jpg")
+            _mask = os.path.join(self._mask_dir, line + ".png")
+            assert os.path.isfile(_image)
+            assert os.path.isfile(_mask)
+            self.im_ids.append(line)
+            self.images.append(_image)
+            self.masks.append(_mask)
+                
+        assert (len(self.images) == len(self.masks))
+        print('Number of images in {}: {:d}'.format(split, len(self.images)))
 
     def __len__(self):
         return len(self.images)
@@ -99,55 +84,24 @@ class SkmtDataSet(Dataset):
         _img, _target = self._make_img_gt_point_pair(index)
         _section = self.get_section(index)
         sample = {'image': _img, 'label': _target, 'section': _section}
-
-        for split in self.split:
-            if split == "train":
-                for key, value in self.transform_tr(sample).items():
-                    sample[key] = value
-                return sample
-            elif split == 'val':
-                for key, value in self.transform_val(sample).items():
-                    sample[key] = value
-                return sample
+        if self.split == "train":
+            for key, value in self.transforms(sample).items():
+                sample[key] = value
+            return sample
+        else:
+            for key, value in self.transforms(sample).items():
+                sample[key] = value
+            return sample
 
     def get_section(self, index):
         _name = self.images[index].split('/')[-1]
         _section = _name.split('_')[0][-2]
-
         return int(_section)
 
     def _make_img_gt_point_pair(self, index):
         _img = Image.open(self.images[index]).convert('RGB')
-        _target = Image.open(self.categories[index])
-
+        _target = Image.open(self.masks[index])
         return _img, _target
-
-    def transform_tr(self, sample):
-        composed_transforms = transforms.Compose([
-            tr.RandomHorizontalFlip(),
-            tr.RandomScaleCrop(base_size=self.args.image_size,
-                               crop_size=self.args.crop_size),
-            tr.FixScaleCrop(crop_size=self.args.crop_size),
-            tr.RandomRotate(10),
-            tr.RandomGaussianBlur(),
-            tr.Normalize(mean=(0.485, 0.456, 0.406),
-                         std=(0.229, 0.224, 0.225)),
-            tr.ToTensor()]
-        )
-
-        return composed_transforms(sample)
-
-    def transform_val(self, sample):
-        composed_transforms = transforms.Compose([
-            tr.FixScaleCrop(crop_size=self.args.crop_size),
-            tr.FixedResize(self.args.crop_size),
-            tr.Normalize(mean=(0.485, 0.456, 0.406),
-                         std=(0.229, 0.224, 0.225)),
-            tr.ToTensor()])
-
-        return composed_transforms(sample)
-
-        # get_ISPRS and encode_segmap generate label map[
 
     def count_section(self):
         """count the section num

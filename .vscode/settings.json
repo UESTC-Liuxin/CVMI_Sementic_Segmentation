@@ -33,5 +33,6 @@
         ], // 禁止.json .md文件，自动添加头部注释
         "wideSame": false, // 设置为true开启
         "wideNum": 13 // 字段长度 默认为13
-    }
+    },
+    "python.linting.enabled": false
 }

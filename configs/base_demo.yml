@@ -5,31 +5,40 @@ Descriptions:
 
 Global:
   distributed: true
-  gpus: 3
+  gpus: 1
   batch_size: 100
   learning_rate: 1e-5
   max_epoch: 30
 
-  Data:
-    dataset:
-      name: skmt
-      num_classes: &num_classes 11
-      image_size: &image_size 256
-      type: rgb
-    transforms:
-      - RandomHorizontalFlip:
-      - RandomScaleCrop:
+Data:
+  name: skmt
+  dataset_root: /home/liuxin/Documents/CVMI_Sementic_Segmentation/data/dataset/SKMT/Seg
+  num_classes: &num_classes 11
+  image_size: &image_size 256
+  type: rgb
+  transforms:
+    train:
+      RandomHorizontalFlip: 
+      RandomScaleCrop:
         base_size: *image_size
         crop_size: *image_size
-      - FixScaleCrop:
+      FixScaleCrop:
         crop_size: *image_size
-      - RandomRotate:
-          - 10
-      - RandomGaussianBlur:
-      - Normalize:
-          - [0.485, 0.456, 0.406]
-          - [0.229, 0.224, 0.225]
-      - ToTensor:
+      RandomRotate:
+        - 10
+      RandomGaussianBlur:
+      Normalize:
+        - [0.485, 0.456, 0.406]
+        - [0.229, 0.224, 0.225]
+      ToTensor:
+    val:
+      FixScaleCrop:
+        crop_size: *image_size
+      Normalize:
+        - [0.485, 0.456, 0.406]
+        - [0.229, 0.224, 0.225]
+      ToTensor:
+
 
 # config network and losses
 Model:
@@ -49,5 +58,7 @@ Model:
     image_size: *image_size
     type: "bilinear"
 
-  criterions:
-    name: compose_loss
+Criterion:
+  name: ImageBasedCrossEntropy2D
+
+

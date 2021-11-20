@@ -1,17 +1,10 @@
-t# -*- coding: utf-8 -*-
-"""
-@description:
-@author: LiuXin
-@contact: xinliu1996@163.com
-@Created on: 2020/11/5 下午2:46
-"""
-
 import torch
 import random
 import numpy as np
-
 from PIL import Image, ImageOps, ImageFilter
+from dataloader.builder import TRANSFORMS
 
+@TRANSFORMS.register_module("Normalize")
 class Normalize(object):
     """Normalize a tensor image with mean and standard deviation.
     Args:
@@ -30,11 +23,10 @@ class Normalize(object):
         img /= 255.0
         img -= self.mean
         img /= self.std
-
         return {'image': img,
                 'label': mask}
 
-
+@TRANSFORMS.register_module("ToTensor")
 class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
 
@@ -46,14 +38,13 @@ class ToTensor(object):
         mask = sample['label']
         img = np.array(img).astype(np.float32).transpose((2, 0, 1))
         mask = np.array(mask).astype(np.float32)
-
         img = torch.from_numpy(img).float()
         mask = torch.from_numpy(mask).long()
 
         return {'image': img,
                 'label': mask}
 
-
+@TRANSFORMS.register_module("RandomHorizontalFlip")
 class RandomHorizontalFlip(object):
     def __call__(self, sample):
         img = sample['image']
@@ -65,7 +56,7 @@ class RandomHorizontalFlip(object):
         return {'image': img,
                 'label': mask}
 
-
+@TRANSFORMS.register_module("RandomRotate")
 class RandomRotate(object):
     def __init__(self, degree):
         self.degree = degree
@@ -80,7 +71,7 @@ class RandomRotate(object):
         return {'image': img,
                 'label': mask}
 
-
+@TRANSFORMS.register_module("RandomGaussianBlur")
 class RandomGaussianBlur(object):
     def __call__(self, sample):
         img = sample['image']
@@ -88,14 +79,10 @@ class RandomGaussianBlur(object):
         if random.random() < 0.5:
             img = img.filter(ImageFilter.GaussianBlur(
                 radius=random.random()))
-        import matplotlib.pyplot as plt
-        plt.imshow(img)
-        plt.show()
-        i
         return {'image': img,
                 'label': mask}
 
-
+@TRANSFORMS.register_module("RandomScaleCrop")
 class RandomScaleCrop(object):
     def __init__(self, base_size, crop_size, fill=0):
         self.base_size = base_size
@@ -128,17 +115,14 @@ class RandomScaleCrop(object):
         y1 = random.randint(0, h - self.crop_size)
         img = img.crop((x1, y1, x1 + self.crop_size, y1 + self.crop_size))
         mask = mask.crop((x1, y1, x1 + self.crop_size, y1 + self.crop_size))
-
         return {'image': img,
                 'label': mask}
 
-
+@TRANSFORMS.register_module("FixScaleCrop")
 class FixScaleCrop(object):
     def __init__(self, crop_size):
         self.crop_size = crop_size
-
     def __call__(self, sample):
-
         img = sample['image']
         mask = sample['label']
         w, h = img.size
@@ -156,10 +140,11 @@ class FixScaleCrop(object):
         y1 = int(round((h - self.crop_size) / 2.))
         img = img.crop((x1, y1, x1 + self.crop_size, y1 + self.crop_size))
         mask = mask.crop((x1, y1, x1 + self.crop_size, y1 + self.crop_size))
-
         return {'image': img,
                 'label': mask}
 
+
+@TRANSFORMS.register_module("FixedResize")
 class FixedResize(object):
     def __init__(self, size):
         self.size = (size, size)  # size: (h, w)
@@ -167,11 +152,8 @@ class FixedResize(object):
     def __call__(self, sample):
         img = sample['image']
         mask = sample['label']
-
         assert img.size == mask.size
-
         img = img.resize(self.size, Image.BILINEAR)
         mask = mask.resize(self.size, Image.NEAREST)
-
         return {'image': img,
                 'label': mask}

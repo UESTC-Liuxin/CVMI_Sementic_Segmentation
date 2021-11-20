@@ -2,14 +2,13 @@
 Author: Liu Xin
 Date: 2021-11-13 15:57:22
 LastEditors: Liu Xin
-LastEditTime: 2021-11-17 20:24:32
+LastEditTime: 2021-11-20 20:41:28
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/tools/train.py
 '''
-
 import os
 import sys
-from numpy.lib.type_check import imag
+from numpy.lib.shape_base import split
 import yaml
 import numpy as np
 import argparse
@@ -21,9 +20,12 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
+sys.path.append("/home/liuxin/Documents/CVMI_Sementic_Segmentation")
 from utils.static_common_utils import set_random_seeds
-from utils.DDP import setup_distributed
+from utils.DDP import setup_distributed, convert_sync_bn
 from model import *
+from dataloader import *
+
 
 
 def parse_cfg(cfg_file):
@@ -36,7 +38,6 @@ def parse_cfg(cfg_file):
     data = f.read()
     cfg_dict = EasyDict(yaml.load(data, Loader=yaml.Loader))
     return cfg_dict
-
 
 def main(args):
     """
@@ -51,28 +52,47 @@ def main(args):
 
     # 构建模型
     model_cfg = cfg_dict.Model
-    print(model_cfg)
     model = build_model(model_cfg)
     if is_distributed:
         setup_distributed()
+        num_workers = global_cfg.gpus
+        # 由于是单节点多卡DDP，因此rank == local rank
         rank = int(os.environ["RANK"])
         local_rank = int(os.environ["LOCAL_RANK"])
         device = torch.device("cuda", local_rank)
         print(f"[init] == local rank: {local_rank}, global rank: {rank} ==")
-        # 1. define network
+        # define network
         model = model.to(device)
-        # DistributedDataParallel
+        # distributedDataParallel
         model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+        sync_BN = model_cfg.sync_BN
+        if sync_BN:
+            model = convert_sync_bn(num_workers, model)
     else:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         model = model.to(device)
-
-    while True:
-        image = torch.randn(2, 3, 256, 256).to(device)
-        out = model(image)
+    
+    # 构建损失
+    criterion_cfg = cfg_dict.Criterion
+    criterion = build_criterion(criterion_cfg)
+    # 构建数据集
+    data_cfg = cfg_dict.Data
+    trainset = build_dataset(data_cfg, split="train")
+    valset = build_dataset(data_cfg, split="val")
+    # 构建优化器
+    
+    # 构建学习率策略
+    
+    # 构建训练器
+    
+    
+    
+    
+    
 
 
 if __name__ == "__main__":
+    print(os.getcwd())
     parser = argparse.ArgumentParser(description='Semantic Segmentation...')
     parser.add_argument('--local_rank', default=0, type=str)
     parser.add_argument(

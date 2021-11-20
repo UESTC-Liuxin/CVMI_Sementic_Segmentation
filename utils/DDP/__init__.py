@@ -14,8 +14,6 @@ import subprocess
 import torch
 import torch.distributed as dist
 import torch.nn as nn
-import torchvision
-import torchvision.transforms as transforms
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 
@@ -55,3 +53,34 @@ def setup_distributed(backend="nccl", port=None):
         world_size=world_size,
         rank=rank,
     )
+
+
+
+def convert_sync_bn(num_workers, model, ranks_group=None):
+    """
+    @description  : convert BN to ddp sync BN , 
+        detail by https://pytorch.org/docs/stable/generated/torch.nn.SyncBatchNorm.html?highlight=convert_sync_batchnorm#torch.nn.SyncBatchNorm.convert_sync_batchnorm
+    @param  :
+    @Returns  :
+    """
+    if ranks_group is None:
+        ranks_group =[ [i for i in range(num_workers)]]
+    process_groups = [torch.distributed.new_group(pids) for pids in ranks_group]
+    local_rank = dist.get_rank()
+    for index, group in enumerate(ranks_group):
+        if local_rank in group:
+            local_group_index =  index
+    process_group = process_groups[local_group_index]
+    sync_bn_network = nn.SyncBatchNorm.convert_sync_batchnorm(model, process_group)
+    ddp_sync_bn_network = torch.nn.parallel.DistributedDataParallel(
+        sync_bn_network,
+        device_ids=[local_rank],
+        output_device=local_rank
+        )
+    return ddp_sync_bn_network
+    
+        
+
+    
+    
+    

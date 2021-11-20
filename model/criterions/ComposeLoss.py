@@ -1,3 +1,11 @@
+'''
+Author: Liu Xin
+Date: 2021-11-18 09:58:40
+LastEditors: Liu Xin
+LastEditTime: 2021-11-20 20:28:37
+Description: file content
+FilePath: /CVMI_Sementic_Segmentation/model/criterions/ComposeLoss.py
+'''
 # -*- coding: utf-8 -*-
 """
 @description:
@@ -10,7 +18,9 @@
 import torch
 import torch.nn as nn
 import warnings
+from model.builder import CRITERION
 
+@CRITERION.register_module("ComposeLoss")
 class ComposeLoss(nn.Module):
     """Dice loss of binary class
     Args:

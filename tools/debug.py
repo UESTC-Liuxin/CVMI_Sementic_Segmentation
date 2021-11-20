@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-16 11:06:01
 LastEditors: Liu Xin
-LastEditTime: 2021-11-16 11:14:03
+LastEditTime: 2021-11-20 17:36:47
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/tools/debug.py
 '''
@@ -23,5 +23,8 @@ def add(x, y):
     print(x+y)
 
 
+def add():
+    print("ok..")
 if __name__ == '__main__':
-    add(3, 5)
+    a = None
+    add(*a)

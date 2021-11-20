@@ -10,7 +10,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from model.builder import CRITERION
 
+
+@CRITERION.register_module("IouLoss")
 class IouLoss(nn.Module):
 
     def __init__(self, n_classes):
