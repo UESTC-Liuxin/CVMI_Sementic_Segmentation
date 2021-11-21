@@ -1,12 +1,11 @@
 '''
 Author: Liu Xin
-Date: 2021-11-13 19:46:55
+Date: 2021-11-21 21:14:29
 LastEditors: Liu Xin
-LastEditTime: 2021-11-17 16:52:41
-Description: DDP utils
-FilePath: /CVMI_Sementic_Segmentation/utils/DDP/__init__.py
+LastEditTime: 2021-11-21 21:14:30
+Description: file content
+FilePath: /CVMI_Sementic_Segmentation/utils/DDP/dist_utils.py
 '''
-
 
 import os
 import subprocess
@@ -16,6 +15,23 @@ import torch.distributed as dist
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+def get_dist_info():
+    if dist.is_available() and dist.is_initialized():
+        rank = dist.get_rank()
+        world_size = dist.get_world_size()
+    else:
+        rank = 0
+        world_size = 1
+    return rank, world_size
+
+
+def master_only(func):
+    def wrapper(*args, **kwargs):
+        rank, _ = get_dist_info()
+        if rank == 0:
+            return func(*args, **kwargs)
+
+    return wrapper
 
 def setup_distributed(backend="nccl", port=None):
     """

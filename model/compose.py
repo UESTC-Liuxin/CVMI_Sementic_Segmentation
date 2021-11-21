@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-16 16:51:42
 LastEditors: Liu Xin
-LastEditTime: 2021-11-17 16:25:39
+LastEditTime: 2021-11-21 22:54:21
 Description: compose all sub-model to a segmentation pipeline
 FilePath: /CVMI_Sementic_Segmentation/model/compose.py
 '''
@@ -44,3 +44,27 @@ class Compose(nn.Module):
         out = self.match_block(base_out)
         outs["out"] = out
         return outs
+    
+    def train_step(self, data_batch, **kwargs):
+        """
+        @description  :
+        @param  :
+        @Returns  :
+        """
+        outs  = self(**data_batch)
+        return outs
+    
+    def val_step(self, data_batch, **kwargs):
+        """
+        @description  :
+        @param  :
+        @Returns  :
+        """
+        outs  = self(**data_batch)
+        return outs
+    
+        
+        
+        
+    
+    

@@ -1,13 +1,23 @@
 Descriptions:
   name: base_segmentation
   version: v1.0
-  ouput_path:
 
 Global:
-  distributed: true
+  log_path: /home/liuxin/Documents/CVMI_Sementic_Segmentation/log/base_demo
+  distributed: false
   gpus: 1
   batch_size: 100
   learning_rate: 1e-5
+  optimizer: 
+    name: SGD
+    lr: 0.00125
+    momentum: 0.9
+    weight_decay: 0.0001
+  lr_config: 
+    policy: poly
+    power: 0.9
+    min_lr: 1e-4
+    by_epoch: false
   max_epoch: 30
 
 Data:
@@ -60,5 +70,7 @@ Model:
 
 Criterion:
   name: ImageBasedCrossEntropy2D
+
+
 
 

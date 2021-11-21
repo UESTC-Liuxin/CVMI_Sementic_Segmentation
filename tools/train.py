@@ -2,13 +2,14 @@
 Author: Liu Xin
 Date: 2021-11-13 15:57:22
 LastEditors: Liu Xin
-LastEditTime: 2021-11-20 20:41:28
+LastEditTime: 2021-11-21 23:34:03
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/tools/train.py
 '''
 import os
 import sys
 from numpy.lib.shape_base import split
+from torch import nn
 import yaml
 import numpy as np
 import argparse
@@ -20,11 +21,15 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
+import dataloader
 sys.path.append("/home/liuxin/Documents/CVMI_Sementic_Segmentation")
 from utils.static_common_utils import set_random_seeds
-from utils.DDP import setup_distributed, convert_sync_bn
+from utils.ddp import setup_distributed, convert_sync_bn
 from model import *
 from dataloader import *
+from utils.runner import build_optimizer
+from utils.logging import get_root_logger
+from utils.runner import EpochBasedRunner
 
 
 
@@ -79,11 +84,33 @@ def main(args):
     data_cfg = cfg_dict.Data
     trainset = build_dataset(data_cfg, split="train")
     valset = build_dataset(data_cfg, split="val")
+    dataloaders = [
+        
+    ]
     # 构建优化器
-    
+    # TODO: easydict不支持未知key的pop
+    optimizer_cfg = global_cfg.optimizer.copy()
+    build_optimizer(model, optimizer_cfg)
     # 构建学习率策略
     
+    # 构建logger的输出
+    log_file = os.path.join(global_cfg.log_path, "log")
+    if not os.path.exists(global_cfg.log_path):
+        os.makedirs(global_cfg.log_path)
+    logger = get_root_logger(log_file=log_file)
     # 构建训练器
+    runner = EpochBasedRunner(
+        model=model,
+        optimizer=None,
+        work_dir=global_cfg.log_path,
+        logger=logger,
+        max_epochs=10
+    )
+    runner.register_training_hooks(
+        global_cfg.lr_config
+    )
+    
+    
     
     
     
@@ -99,3 +126,4 @@ if __name__ == "__main__":
         '-c', '--cfg_file', default="/home/liuxin/Documents/CVMI_Sementic_Segmentation/configs/base_demo.yml", type=str)
     args = parser.parse_args()
     main(args)
+    

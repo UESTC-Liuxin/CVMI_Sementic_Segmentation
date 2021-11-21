@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-16 11:06:01
 LastEditors: Liu Xin
-LastEditTime: 2021-11-20 17:36:47
+LastEditTime: 2021-11-21 21:38:23
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/tools/debug.py
 '''
@@ -25,6 +25,8 @@ def add(x, y):
 
 def add():
     print("ok..")
+    
+    
+from torch.optim.adam import Adam
 if __name__ == '__main__':
-    a = None
-    add(*a)
+    print(Adam.__name__)
