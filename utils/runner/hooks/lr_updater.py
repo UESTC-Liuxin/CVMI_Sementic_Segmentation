@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-21 18:07:06
 LastEditors: Liu Xin
-LastEditTime: 2021-11-21 22:57:19
+LastEditTime: 2021-11-22 15:18:09
 Description: lr updater , copied by mmcv(https://github.com/open-mmlab/mmcv/tree/master/mmcv)
 FilePath: /CVMI_Sementic_Segmentation/utils/runner/hooks/lr_updater.py
 '''
@@ -158,7 +158,7 @@ class LrUpdaterHook(Hook):
                 self._set_lr(runner, warmup_lr)
 
 
-@HOOKS.register_module("FixedLrUpdaterHook")
+@HOOKS.register_module()
 class FixedLrUpdaterHook(LrUpdaterHook):
 
     def __init__(self, **kwargs):

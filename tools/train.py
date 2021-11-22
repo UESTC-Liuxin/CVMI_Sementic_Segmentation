@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-13 15:57:22
 LastEditors: Liu Xin
-LastEditTime: 2021-11-21 23:34:03
+LastEditTime: 2021-11-22 20:12:45
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/tools/train.py
 '''
@@ -21,8 +21,8 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
-import dataloader
 sys.path.append("/home/liuxin/Documents/CVMI_Sementic_Segmentation")
+from model.builder import build_criterions
 from utils.static_common_utils import set_random_seeds
 from utils.ddp import setup_distributed, convert_sync_bn
 from model import *
@@ -78,19 +78,18 @@ def main(args):
         model = model.to(device)
     
     # 构建损失
-    criterion_cfg = cfg_dict.Criterion
-    criterion = build_criterion(criterion_cfg)
+    decode_heads_cfg = model_cfg.decode_heads
+    criterions = build_criterions(decode_heads_cfg)
     # 构建数据集
     data_cfg = cfg_dict.Data
     trainset = build_dataset(data_cfg, split="train")
     valset = build_dataset(data_cfg, split="val")
-    dataloaders = [
-        
-    ]
+    train_dataloader = build_dataloader(trainset, global_cfg, shuffle=True)
+    val_dataloader = build_dataloader(valset,global_cfg, shuffle=False)
     # 构建优化器
     # TODO: easydict不支持未知key的pop
     optimizer_cfg = global_cfg.optimizer.copy()
-    build_optimizer(model, optimizer_cfg)
+    optimizer = build_optimizer(model, optimizer_cfg)
     # 构建学习率策略
     
     # 构建logger的输出
@@ -100,16 +99,29 @@ def main(args):
     logger = get_root_logger(log_file=log_file)
     # 构建训练器
     runner = EpochBasedRunner(
+        device,
         model=model,
-        optimizer=None,
+        optimizer=optimizer,
         work_dir=global_cfg.log_path,
         logger=logger,
         max_epochs=10
     )
-    runner.register_training_hooks(
-        global_cfg.lr_config
-    )
+    print(global_cfg.optimizer_config)
+    # 注册钩子函数: lr_schedule, logger
     
+    runner.register_training_hooks(
+        lr_config=global_cfg.lr_config,
+        optimizer_config=global_cfg.optimizer_config
+    )
+    print(criterions)
+    runner.register_criterions_hook(
+        {"criterions": criterions}
+    )
+    runner.run(
+        data_loaders=[train_dataloader, val_dataloader],
+        workflow=global_cfg.workflow,
+        max_epochs=global_cfg.max_epoch
+    )
     
     
     

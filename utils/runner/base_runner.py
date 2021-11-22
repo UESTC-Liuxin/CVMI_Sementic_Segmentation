@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-21 19:43:50
 LastEditors: Liu Xin
-LastEditTime: 2021-11-21 23:30:38
+LastEditTime: 2021-11-22 18:54:52
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/utils/runner/base_runner.py
 '''
@@ -280,11 +280,11 @@ class BaseRunner(metaclass=ABCMeta):
         """Register a hook from its cfg.
 
         Args:
-            hook_cfg (dict): Hook config. It should have at least keys 'type'
+            hook_cfg (dict): Hook config. It should have at least keys 'name'
               and 'priority' indicating its type and priority.
 
         Notes:
-            The specific hook class to register should not use 'type' and
+            The specific hook class to register should not use 'name' and
             'priority' arguments during initialization.
         """
         hook_cfg = hook_cfg.copy()
@@ -343,7 +343,6 @@ class BaseRunner(metaclass=ABCMeta):
                 policy_type = policy_type.title()
             hook_type = policy_type + 'LrUpdaterHook'
             lr_config['name'] = hook_type
-            print(HOOKS)
             hook = build(lr_config, HOOKS)
         else:
             hook = lr_config
@@ -364,7 +363,7 @@ class BaseRunner(metaclass=ABCMeta):
             if policy_type == policy_type.lower():
                 policy_type = policy_type.title()
             hook_type = policy_type + 'MomentumUpdaterHook'
-            momentum_config['type'] = hook_type
+            momentum_config['name'] = hook_type
             hook = build(momentum_config, HOOKS)
         else:
             hook = momentum_config
@@ -372,9 +371,9 @@ class BaseRunner(metaclass=ABCMeta):
 
     def register_optimizer_hook(self, optimizer_config):
         if optimizer_config is None:
-            return
+            optimizer_config = dict()
         if isinstance(optimizer_config, dict):
-            optimizer_config.setdefault('type', 'OptimizerHook')
+            optimizer_config.setdefault('name', 'OptimizerHook')
             hook = build(optimizer_config, HOOKS)
         else:
             hook = optimizer_config
@@ -384,7 +383,7 @@ class BaseRunner(metaclass=ABCMeta):
         if checkpoint_config is None:
             return
         if isinstance(checkpoint_config, dict):
-            checkpoint_config.setdefault('type', 'CheckpointHook')
+            checkpoint_config.setdefault('name', 'CheckpointHook')
             hook = build(checkpoint_config, HOOKS)
         else:
             hook = checkpoint_config
@@ -426,7 +425,7 @@ class BaseRunner(metaclass=ABCMeta):
         if profiler_config is None:
             return
         if isinstance(profiler_config, dict):
-            profiler_config.setdefault('type', 'ProfilerHook')
+            profiler_config.setdefault('name', 'ProfilerHook')
             hook = build(profiler_config, HOOKS)
         else:
             hook = profiler_config

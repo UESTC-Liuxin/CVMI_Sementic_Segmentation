@@ -83,7 +83,7 @@ class SkmtDataSet(Dataset):
     def __getitem__(self, index):
         _img, _target = self._make_img_gt_point_pair(index)
         _section = self.get_section(index)
-        sample = {'image': _img, 'label': _target, 'section': _section}
+        sample = {'image': _img, 'mask': _target, 'section': _section}
         if self.split == "train":
             for key, value in self.transforms(sample).items():
                 sample[key] = value

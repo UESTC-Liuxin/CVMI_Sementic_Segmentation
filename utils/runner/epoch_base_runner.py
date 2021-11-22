@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-21 21:50:20
 LastEditors: Liu Xin
-LastEditTime: 2021-11-21 21:53:07
+LastEditTime: 2021-11-22 20:12:29
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/utils/runner/epoch_base_runner.py
 '''
@@ -12,12 +12,12 @@ import platform
 import shutil
 import time
 import warnings
-
+from numpy.lib.shape_base import dsplit
 import torch
-
-import mmcv
 from .base_runner import BaseRunner
 from .builder import RUNNERS
+from utils.runner.hooks import HOOKS, Hook
+from utils.registry import Registry, build
 
 
 @RUNNERS.register_module()
@@ -26,12 +26,26 @@ class EpochBasedRunner(BaseRunner):
 
     This runner train models epoch by epoch.
     """
-
+    def __init__(self, device, *args, **kwargs):
+        super(EpochBasedRunner, self).__init__(*args, **kwargs)
+        self.device = device
+        
+    def to_device(self,tensors):
+        """
+        @description  : 将字典中的tensor转移到device上
+        @param  :
+        @Returns  :
+        """
+        cuda_tensors={}
+        for key,value in tensors.items():
+            if(isinstance(value,torch.Tensor)):
+                value=value.to(self.device)
+            cuda_tensors[key]=value
+        return cuda_tensors
+    
     def run_iter(self, data_batch, train_mode, **kwargs):
-        if self.batch_processor is not None:
-            outputs = self.batch_processor(
-                self.model, data_batch, train_mode=train_mode, **kwargs)
-        elif train_mode:
+        data_batch = self.to_device(data_batch)
+        if train_mode:
             outputs = self.model.train_step(data_batch, self.optimizer,
                                             **kwargs)
         else:
@@ -87,7 +101,6 @@ class EpochBasedRunner(BaseRunner):
                 iteratively.
         """
         assert isinstance(data_loaders, list)
-        assert mmcv.is_list_of(workflow, tuple)
         assert len(data_loaders) == len(workflow)
         if max_epochs is not None:
             warnings.warn(
@@ -182,7 +195,22 @@ class EpochBasedRunner(BaseRunner):
         #         mmcv.symlink(filename, dst_file)
         #     else:
         #         shutil.copy(filepath, dst_file)
-
+    def get_deivice(self):
+        print(self.model.device)
+    
+    def register_criterions_hook(self, criterions_config):
+        """
+        @description  :注册计算损失的钩子函数
+        @param  :
+        @Returns  :
+        """
+        assert criterions_config is not None
+        if isinstance(criterions_config, dict):
+            criterions_config.setdefault('name', 'LossCaculatorHook')
+            hook = build(criterions_config, HOOKS)
+        else:
+            hook = criterions_config
+        self.register_hook(hook, priority='HIGHEST')
 
 @RUNNERS.register_module()
 class Runner(EpochBasedRunner):

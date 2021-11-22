@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-16 16:51:42
 LastEditors: Liu Xin
-LastEditTime: 2021-11-21 22:54:21
+LastEditTime: 2021-11-22 20:34:16
 Description: compose all sub-model to a segmentation pipeline
 FilePath: /CVMI_Sementic_Segmentation/model/compose.py
 '''
@@ -22,45 +22,73 @@ class MatchBlock(nn.Module):
 
 
 class Compose(nn.Module):
-    def __init__(self, match_cfg,  backbone, neck, decode_head, auxiliary=None) -> None:
+    """[summary]
+
+    Args:
+        nn ([type]): [description]
+    """
+    def __init__(self, match_cfg,  backbone, neck, decode_heads:nn.ModuleDict):
         super(Compose, self).__init__()
         self.backbone = backbone
         self.neck = neck
-        self.decode_head = decode_head
-        self.auxiliary = auxiliary
-        self.match_block = MatchBlock(**match_cfg)
-        if (auxiliary is not None):
-            self.match_block_auxiliary = MatchBlock(**match_cfg)
-
-    def forward(self, input):
-        outs = dict()
-        features = self.backbone(input)
+        self.decode_heads = decode_heads
+        self.match_block = nn.ModuleDict()
+        # 由于不知道会有多少个head
+        for key, head in self.decode_heads.items():
+            if "seg" in key:
+                self.match_block[key] = MatchBlock(**match_cfg)
+        
+    def forward_train(self, image,**kwargs):
+        """
+        @description  : 训练时前向推断，经过auxiliary
+        @param  :
+        @Returns  :
+        """
+        outs = kwargs
+        features = self.backbone(image )
         features = self.neck(features)
-        if self.auxiliary is not None:
-            auxilary_base_out = self.auxiliary(features)
-            auxilary_out = self.match_block_auxiliary(auxilary_base_out)
-            outs["auxiliary_out"] = auxilary_out
-        base_out = self.decode_head(features)
-        out = self.match_block(base_out)
-        outs["out"] = out
+        for key, head in self.decode_heads.items():
+            out = head(features)
+            # 只有*SegHead才需要进行尺寸匹配
+            if "seg" in key:
+                out = self.match_block[key] (out)
+            outs[key+"_out"] =out
         return outs
     
-    def train_step(self, data_batch, **kwargs):
+    def forward_val(self, image, **kwargs):
+        """
+        @description  : 评估的前向推断(原则上是不经过auxiliary的）
+        @param  :
+        @Returns  :
+        """
+        outs = dict()
+        features = self.backbone(image )
+        features = self.neck(features)
+        for key, head in self.decode_heads.items():
+            out = head(features)
+            # 只有*SegHead才需要进行尺寸匹配
+            if "Seg" in key:
+                out = self.match_block[key] (out)
+            outs[key+"_out"] =out
+        return outs
+
+    
+    def train_step(self, data_batch, optimizer,  **kwargs):
         """
         @description  :
         @param  :
         @Returns  :
         """
-        outs  = self(**data_batch)
+        outs  = self.forward_train(**data_batch)
         return outs
     
-    def val_step(self, data_batch, **kwargs):
+    def val_step(self, data_batch, optimizer, **kwargs):
         """
         @description  :
         @param  :
         @Returns  :
         """
-        outs  = self(**data_batch)
+        outs  = self.forward_val(**data_batch)
         return outs
     
         

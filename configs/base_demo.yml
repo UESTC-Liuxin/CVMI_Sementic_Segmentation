@@ -4,19 +4,25 @@ Descriptions:
 
 Global:
   log_path: /home/liuxin/Documents/CVMI_Sementic_Segmentation/log/base_demo
+  workflow: 
+    - [train, 1]
+    - [val, 1]
   distributed: false
   gpus: 1
-  batch_size: 100
-  learning_rate: 1e-5
+  batch_size: 32
+  num_workers: 4
+  learning_rate: 1.0e-5
+  max_epoch: 10
   optimizer: 
     name: SGD
     lr: 0.00125
     momentum: 0.9
     weight_decay: 0.0001
+  optimizer_config:
   lr_config: 
     policy: poly
     power: 0.9
-    min_lr: 1e-4
+    min_lr: 1.0e-4
     by_epoch: false
   max_epoch: 30
 
@@ -59,17 +65,22 @@ Model:
     output_stride: 32
   neck:
     name: Identity
-  decode_head:
-    name: Unet
-    in_channel: 2048
-    num_classes: *num_classes
-    factors: [2, 2, 4, 2]
+  decode_heads:
+    trunk_seg_head:
+      name: Unet
+      in_channel: 2048
+      num_classes: *num_classes
+      factors: [2, 2, 4, 2]
+      criterion: 
+        name: ImageBasedCrossEntropy2D
+    
+
   match_block:
     image_size: *image_size
     type: "bilinear"
 
-Criterion:
-  name: ImageBasedCrossEntropy2D
+
+  
 
 
 
