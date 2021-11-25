@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-16 10:44:06
 LastEditors: Liu Xin
-LastEditTime: 2021-11-21 23:17:46
+LastEditTime: 2021-11-23 15:41:01
 Description: regist module by using decorators(detail by:https://blog.csdn.net/qq_20549061/article/details/107883272)
 FilePath: /CVMI_Sementic_Segmentation/utils/registry.py
 '''
@@ -32,7 +32,7 @@ def build(cfg, registry, default_args=None):
                 '`cfg` or `default_args` must contain the key "name", '
                 f'but got {cfg}\n{default_args}')
     if not isinstance(registry, Registry):
-        raise TypeError('registry must be an mmcv.Registry object, '
+        raise TypeError('registry must be an Registry object, '
                         f'but got {type(registry)}')
     if not (isinstance(default_args, dict) or default_args is None):
         raise TypeError('default_args must be a dict or None, '

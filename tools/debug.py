@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-16 11:06:01
 LastEditors: Liu Xin
-LastEditTime: 2021-11-21 21:38:23
+LastEditTime: 2021-11-25 11:51:24
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/tools/debug.py
 '''
@@ -30,3 +30,7 @@ def add():
 from torch.optim.adam import Adam
 if __name__ == '__main__':
     print(Adam.__name__)
+    from collections import OrderedDict
+    A = OrderedDict()
+    value = A.get("a", 0)
+    print(value)

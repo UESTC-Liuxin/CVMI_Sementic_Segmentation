@@ -1,0 +1,19 @@
+/home/liuxin/Documents/CVMI_Sementic_Segmentation
+Traceback (most recent call last):
+  File "tools/train.py", line 143, in <module>
+    main(args)
+  File "tools/train.py", line 51, in main
+    cfg_dict = parse_cfg(args.cfg_file)  # 解析config文件
+  File "tools/train.py", line 39, in parse_cfg
+    f = open(cfg_file, "r", encoding="utf-8")
+FileNotFoundError: [Errno 2] No such file or directory: '/home/liuxin/Documents/CVMI_Sementic_Segmentation/configs/unet/unet_baseline.yml'
+Traceback (most recent call last):
+  File "/media/kb541/data/liuxin/miniconda3/envs/py37/lib/python3.7/runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "/media/kb541/data/liuxin/miniconda3/envs/py37/lib/python3.7/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "/media/kb541/data/liuxin/miniconda3/envs/py37/lib/python3.7/site-packages/torch/distributed/launch.py", line 253, in <module>
+    main()
+  File "/media/kb541/data/liuxin/miniconda3/envs/py37/lib/python3.7/site-packages/torch/distributed/launch.py", line 249, in main
+    cmd=cmd)
+subprocess.CalledProcessError: Command '['/media/kb541/data/liuxin/miniconda3/envs/py37/bin/python', '-u', 'tools/train.py', '--local_rank=0', '-c', '/home/liuxin/Documents/CVMI_Sementic_Segmentation/configs/unet/unet_baseline.yml']' returned non-zero exit status 1.

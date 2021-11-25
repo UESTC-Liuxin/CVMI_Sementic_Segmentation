@@ -1,0 +1,44 @@
+/home/liuxin/Documents/CVMI_Sementic_Segmentation
+[init] == local rank: 0, global rank: 0 ==
+Registry(name=evaluator, items={'BaseEvaluator': <class 'utils.runner.evaluator.evaluator.BaseEvaluator'>})
+Number of images in train: 599
+Number of images in val: 183
+2021-11-24 09:16:01,640 - mmseg - INFO - Start running, host: liuxin@kb541-sever, work_dir: /home/liuxin/Documents/CVMI_Sementic_Segmentation/log/base_demo
+2021-11-24 09:16:01,641 - mmseg - INFO - Hooks will be executed in the following order:
+before_run:
+(VERY_HIGH   ) PolyLrUpdaterHook                  
+(VERY_LOW    ) TensorboardLoggerHook              
+ -------------------- 
+before_train_epoch:
+(VERY_HIGH   ) PolyLrUpdaterHook                  
+(VERY_LOW    ) TensorboardLoggerHook              
+ -------------------- 
+before_train_iter:
+(VERY_HIGH   ) PolyLrUpdaterHook                  
+ -------------------- 
+after_train_iter:
+(ABOVE_NORMAL) OptimizerHook                      
+(VERY_LOW    ) TensorboardLoggerHook              
+ -------------------- 
+after_train_epoch:
+(VERY_LOW    ) TensorboardLoggerHook              
+ -------------------- 
+before_val_epoch:
+(LOW         ) EvaluatorHook                      
+(VERY_LOW    ) TensorboardLoggerHook              
+ -------------------- 
+after_val_iter:
+(LOW         ) EvaluatorHook                      
+ -------------------- 
+after_val_epoch:
+(LOW         ) EvaluatorHook                      
+(VERY_LOW    ) TensorboardLoggerHook              
+ -------------------- 
+after_run:
+(VERY_LOW    ) TensorboardLoggerHook              
+ -------------------- 
+2021-11-24 09:16:01,641 - mmseg - INFO - workflow: [['train', 1], ['val', 1]], max: 30 epochs
+/media/kb541/data/liuxin/miniconda3/envs/py37/lib/python3.7/site-packages/torch/nn/functional.py:2494: UserWarning: Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. Please specify align_corners=True if the old behavior is desired. See the documentation of nn.Upsample for details.
+  "See the documentation of nn.Upsample for details.".format(mode))
+/home/liuxin/Documents/CVMI_Sementic_Segmentation/utils/runner/evaluator/evaluator.py:64: RuntimeWarning: invalid value encountered in true_divide
+  np.diag(self.confusion_matrix))

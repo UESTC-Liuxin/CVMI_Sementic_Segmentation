@@ -128,5 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-
-data
+.log/
+.data/
+.checkpoints/
+*.jpg
+*.png
+*.pth.*

@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-21 21:50:20
 LastEditors: Liu Xin
-LastEditTime: 2021-11-22 20:12:29
+LastEditTime: 2021-11-25 12:19:32
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/utils/runner/epoch_base_runner.py
 '''
@@ -18,7 +18,8 @@ from .base_runner import BaseRunner
 from .builder import RUNNERS
 from utils.runner.hooks import HOOKS, Hook
 from utils.registry import Registry, build
-
+from utils.static_common_utils import get_host_info, symlink
+from utils.runner.checkpoint import save_checkpoint
 
 @RUNNERS.register_module()
 class EpochBasedRunner(BaseRunner):
@@ -26,7 +27,7 @@ class EpochBasedRunner(BaseRunner):
 
     This runner train models epoch by epoch.
     """
-    def __init__(self, device, *args, **kwargs):
+    def __init__(self, device,  *args, **kwargs):
         super(EpochBasedRunner, self).__init__(*args, **kwargs)
         self.device = device
         
@@ -46,10 +47,11 @@ class EpochBasedRunner(BaseRunner):
     def run_iter(self, data_batch, train_mode, **kwargs):
         data_batch = self.to_device(data_batch)
         if train_mode:
-            outputs = self.model.train_step(data_batch, self.optimizer,
+            outs = self.model(data_batch, self.optimizer, train_mode, 
                                             **kwargs)
         else:
-            outputs = self.model.val_step(data_batch, self.optimizer, **kwargs)
+            outs = self.model(data_batch, self.optimizer, train_mode, **kwargs)
+        outputs = dict(data_batch, **outs)
         if not isinstance(outputs, dict):
             raise TypeError('"batch_processor()" or "model.train_step()"'
                             'and "model.val_step()" must return a dict')
@@ -118,12 +120,12 @@ class EpochBasedRunner(BaseRunner):
                 break
 
         work_dir = self.work_dir if self.work_dir is not None else 'NONE'
-        # self.logger.info('Start running, host: %s, work_dir: %s',
-        #                  get_host_info(), work_dir)
-        # self.logger.info('Hooks will be executed in the following order:\n%s',
-        #                  self.get_hook_info())
-        # self.logger.info('workflow: %s, max: %d epochs', workflow,
-        #                  self._max_epochs)
+        self.logger.info('Start running, host: %s, work_dir: %s',
+                         get_host_info(), work_dir)
+        self.logger.info('Hooks will be executed in the following order:\n%s',
+                         self.get_hook_info())
+        self.logger.info('workflow: %s, max: %d epochs', workflow,
+                         self._max_epochs)
         self.call_hook('before_run')
 
         while self.epoch < self._max_epochs:
@@ -153,6 +155,7 @@ class EpochBasedRunner(BaseRunner):
                         filename_tmpl='epoch_{}.pth',
                         save_optimizer=True,
                         meta=None,
+                        save_history=False,
                         create_symlink=True):
         """Save the checkpoint.
 
@@ -169,34 +172,30 @@ class EpochBasedRunner(BaseRunner):
                 "latest.pth" to point to the latest checkpoint.
                 Defaults to True.
         """
-        pass
-        # if meta is None:
-        #     meta = {}
-        # elif not isinstance(meta, dict):
-        #     raise TypeError(
-        #         f'meta should be a dict or None, but got {type(meta)}')
-        # if self.meta is not None:
-        #     meta.update(self.meta)
-        #     # Note: meta.update(self.meta) should be done before
-        #     # meta.update(epoch=self.epoch + 1, iter=self.iter) otherwise
-        #     # there will be problems with resumed checkpoints.
-        #     # More details in https://github.com/open-mmlab/mmcv/pull/1108
-        # meta.update(epoch=self.epoch + 1, iter=self.iter)
-
-        # filename = filename_tmpl.format(self.epoch + 1)
-        # filepath = osp.join(out_dir, filename)
-        # optimizer = self.optimizer if save_optimizer else None
-        # save_checkpoint(self.model, filepath, optimizer=optimizer, meta=meta)
-        # # in some environments, `os.symlink` is not supported, you may need to
-        # # set `create_symlink` to False
-        # if create_symlink:
-        #     dst_file = osp.join(out_dir, 'latest.pth')
-        #     if platform.system() != 'Windows':
-        #         mmcv.symlink(filename, dst_file)
-        #     else:
-        #         shutil.copy(filepath, dst_file)
-    def get_deivice(self):
-        print(self.model.device)
+        if meta is None:
+            meta = dict(epoch=self.epoch + 1, iter=self.iter)
+        elif isinstance(meta, dict):
+            meta.update(epoch=self.epoch + 1, iter=self.iter)
+        else:
+            raise TypeError(
+                f'meta should be a dict or None, but got {type(meta)}')
+        if self.meta is not None:
+            meta.update(self.meta)
+        # 如果不保存历史，就只存最新结果
+        if not save_history:
+            filename = filename_tmpl.format("latest")
+        else:
+            filename = filename_tmpl.format(self.epoch + 1)
+        filepath = osp.join(out_dir, filename)
+        optimizer = self.optimizer if save_optimizer else None
+        save_checkpoint(self.model, filepath, optimizer=optimizer, meta=meta)
+        # 保存最优模型
+        if self.log_buffer.output.get("is_best", False):
+            shutil.copy(filepath, filepath + ".best")
+        # 将模型软连接到
+        if create_symlink:
+            symlink(filename, osp.join(out_dir, 'latest.pth'))
+        
     
     def register_criterions_hook(self, criterions_config):
         """
@@ -211,6 +210,20 @@ class EpochBasedRunner(BaseRunner):
         else:
             hook = criterions_config
         self.register_hook(hook, priority='HIGHEST')
+    
+    def register_evaluate_hook(self, evaluate_config):
+        """
+        @description  :注册评估的钩子函数
+        @param  :
+        @Returns  :
+        """
+        assert evaluate_config is not None
+        if isinstance(evaluate_config, dict):
+            evaluate_config.setdefault('name', 'EvaluatorHook')
+            hook = build(evaluate_config, HOOKS)
+        else:
+            hook = evaluate_config
+        self.register_hook(hook, priority='HIGH')
 
 @RUNNERS.register_module()
 class Runner(EpochBasedRunner):

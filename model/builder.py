@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-16 15:29:11
 LastEditors: Liu Xin
-LastEditTime: 2021-11-22 20:05:24
+LastEditTime: 2021-11-23 19:55:59
 Description: 
 FilePath: /CVMI_Sementic_Segmentation/model/builder.py
 '''
@@ -67,7 +67,9 @@ def build_model(model_cfg: dict):
     neck = build_neck(neck_cfg)
     # 构建decode_head
     decode_heads = build_decode_heads(head_cfg)
-    return Compose(math_block_cfg, backbone, neck, decode_heads)
+    # 构建损失
+    criterion = build_criterions(head_cfg)
+    return Compose(math_block_cfg, backbone, neck, decode_heads, criterion)
 
 
 def build_criterions(cfg: dict):

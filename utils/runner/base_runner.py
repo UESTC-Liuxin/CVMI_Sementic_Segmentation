@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-21 19:43:50
 LastEditors: Liu Xin
-LastEditTime: 2021-11-22 18:54:52
+LastEditTime: 2021-11-25 12:03:55
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/utils/runner/base_runner.py
 '''
@@ -18,7 +18,7 @@ from utils.runner.hooks import HOOKS, Hook
 from utils.registry import Registry, build
 from utils.ddp.dist_utils import get_dist_info
 from utils.runner.priority import Priority, get_priority
-
+from  utils.runner.log_buffer import LogBuffer
 
 class BaseRunner(metaclass=ABCMeta):
     """The base class of Runner, a training helper for PyTorch.
@@ -63,22 +63,12 @@ class BaseRunner(metaclass=ABCMeta):
             if not callable(batch_processor):
                 raise TypeError('batch_processor must be callable, '
                                 f'but got {type(batch_processor)}')
-            warnings.warn('batch_processor is deprecated, please implement '
-                          'train_step() and val_step() in the model instead.')
-            # raise an error is `batch_processor` is not None and
             # `model.train_step()` exists.
-            # if is_module_wrapper(model):
             # TODO: 判断是否是一个module的包装，pytorch中指的是DataParallel和DistributedDataParallel
             if "DataParallel" in model.__class__.__name__:
                 _model = model.module
             else:
                 _model = model
-            if hasattr(_model, 'train_step') or hasattr(_model, 'val_step'):
-                raise RuntimeError(
-                    'batch_processor and model.train_step()/model.val_step() '
-                    'cannot be both available.')
-        else:
-            assert hasattr(model, 'train_step')
 
         # check the type of `optimizer`
         if isinstance(optimizer, dict):
@@ -130,7 +120,8 @@ class BaseRunner(metaclass=ABCMeta):
         self._max_epochs = max_epochs
         self._max_iters = max_iters
 
-
+        self.log_buffer = LogBuffer()
+        
     @property
     def model_name(self):
         """str: Name of the model, usually the module class name."""
@@ -467,7 +458,7 @@ class BaseRunner(metaclass=ABCMeta):
         self.register_lr_hook(lr_config)
         # self.register_momentum_hook(momentum_config)
         self.register_optimizer_hook(optimizer_config)
-        # self.register_checkpoint_hook(checkpoint_config)
+        self.register_checkpoint_hook(checkpoint_config)
         # self.register_timer_hook(timer_config)
         self.register_logger_hooks(log_config)
         # self.register_custom_hooks(custom_hooks_config)

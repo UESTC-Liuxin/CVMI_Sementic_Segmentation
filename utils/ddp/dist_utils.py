@@ -2,14 +2,14 @@
 Author: Liu Xin
 Date: 2021-11-21 21:14:29
 LastEditors: Liu Xin
-LastEditTime: 2021-11-21 21:14:30
+LastEditTime: 2021-11-23 16:30:31
 Description: file content
-FilePath: /CVMI_Sementic_Segmentation/utils/DDP/dist_utils.py
+FilePath: /CVMI_Sementic_Segmentation/utils/ddp/dist_utils.py
 '''
 
 import os
 import subprocess
-
+import pickle
 import torch
 import torch.distributed as dist
 import torch.nn as nn
@@ -52,7 +52,7 @@ def setup_distributed(backend="nccl", port=None):
         elif "MASTER_PORT" in os.environ:
             pass  # use MASTER_PORT in the environment variable
         else:
-            os.environ["MASTER_PORT"] = "29500"
+            os.environ["MASTER_PORT"] = "29501"
         if "MASTER_ADDR" not in os.environ:
             os.environ["MASTER_ADDR"] = addr
         os.environ["WORLD_SIZE"] = str(world_size)
@@ -78,7 +78,7 @@ def convert_sync_bn(num_workers, model, ranks_group=None):
         detail by https://pytorch.org/docs/stable/generated/torch.nn.SyncBatchNorm.html?highlight=convert_sync_batchnorm#torch.nn.SyncBatchNorm.convert_sync_batchnorm
     @param  :
     @Returns  :
-    """
+    """    
     if ranks_group is None:
         ranks_group =[ [i for i in range(num_workers)]]
     process_groups = [torch.distributed.new_group(pids) for pids in ranks_group]
@@ -96,7 +96,58 @@ def convert_sync_bn(num_workers, model, ranks_group=None):
     return ddp_sync_bn_network
     
         
+def collect_results_gpu(result_part, size=None):
+    """Collect results under gpu mode.
+        
+    On gpu mode, this function will encode results to gpu tensors and use gpu
+    communication for results collection.
+    在分布式模式下对数据进行汇总（在val和test过程中需要同步评估结论）
+    Args:
+        result_part (list): Result list containing result parts
+            to be collected.
+        size (int): Size of the results, commonly equal to length of
+            the results.
 
+    Returns:
+        list: The collected results.
+    """
+    if not dist.is_initialized():
+        return
+    if size is None:
+        size = len(result_part)
+    rank, world_size = get_dist_info()
+    # dump result part to tensor with pickle
+    part_tensor = torch.tensor(
+        bytearray(pickle.dumps(result_part)), dtype=torch.uint8, device='cuda')
+    # gather all result part tensor shape
+    shape_tensor = torch.tensor(part_tensor.shape, device='cuda')
+    shape_list = [shape_tensor.clone() for _ in range(world_size)]
+    dist.all_gather(shape_list, shape_tensor)
+    # padding result part tensor to max length
+    shape_max = torch.tensor(shape_list).max()
+    part_send = torch.zeros(shape_max, dtype=torch.uint8, device='cuda')
+    part_send[:shape_tensor[0]] = part_tensor
+    part_recv_list = [
+        part_tensor.new_zeros(shape_max) for _ in range(world_size)
+    ]
+    # gather all result part
+    dist.all_gather(part_recv_list, part_send)
+
+    if rank == 0:
+        part_list = []
+        for recv, shape in zip(part_recv_list, shape_list):
+            part_result = pickle.loads(recv[:shape[0]].cpu().numpy().tobytes())
+            # When data is severely insufficient, an empty part_result
+            # on a certain gpu could makes the overall outputs empty.
+            if part_result:
+                part_list.append(part_result)
+        # sort the results
+        ordered_results = []
+        for res in zip(*part_list):
+            ordered_results.extend(list(res))
+        # the dataloader may pad some samples
+        ordered_results = ordered_results[:size]
+        return ordered_results
     
     
     

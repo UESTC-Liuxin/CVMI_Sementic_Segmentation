@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-15 15:40:31
 LastEditors: Liu Xin
-LastEditTime: 2021-11-17 20:20:19
+LastEditTime: 2021-11-23 18:26:49
 Description: base unet decode head
 FilePath: /CVMI_Sementic_Segmentation/model/decode_heads/unet.py
 '''
@@ -57,7 +57,7 @@ class Up(nn.Module):
         # if bilinear, use the normal convolutions to reduce the number of channels
         if bilinear:
             self.up = nn.Upsample(
-                scale_factor=2, mode='bilinear', align_corners=True)
+                scale_factor=2, mode='bilinear', align_corners=False)
             self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
         else:
             self.up = nn.ConvTranspose2d(
