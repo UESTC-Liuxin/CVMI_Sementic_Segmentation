@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES="1"
+export CUDA_VISIBLE_DEVICES="0,1"
 python -m torch.distributed.launch \
     --nproc_per_node=1 \
     --nnodes=1 \
@@ -6,7 +6,7 @@ python -m torch.distributed.launch \
     --master_addr=localhost \
     --master_port=29501 \
     tools/train.py \
-    -c /home/liuxin/Documents/CVMI_Sementic_Segmentation/configs/base_demo.yml
+    -c /home/liuxin/Documents/CVMI_Sementic_Segmentation/configs/unet/unet_skmt_baseline.yml
 
 
 # ps -ef | grep -v grep | grep tools/train.py  | awk '{print $2}' | xargs kill -9

@@ -17,7 +17,7 @@ Global:
     - [val, 1]
   distributed: true
   gpus: 1
-  batch_size: 16
+  batch_size: 1
   num_workers: 4
   max_epoch: 600
   optimizer: 
@@ -77,7 +77,7 @@ Model:
     name: Identity
   decode_heads:
     trunk_seg_head:
-      name: Unet
+      name: enc_unet
       in_channels: 2048
       num_classes: *num_classes
       factors: [2, 2, 4, 2]
@@ -85,7 +85,8 @@ Model:
         image_size: *image_size
         type: "bilinear"
       criterion: 
-        name: ImageBasedCrossEntropy2D
+        name: encnet_loss
+        num_classes: *num_classes
 
 
 

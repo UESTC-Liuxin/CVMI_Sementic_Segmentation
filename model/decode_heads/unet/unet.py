@@ -2,16 +2,16 @@
 Author: Liu Xin
 Date: 2021-11-15 15:40:31
 LastEditors: Liu Xin
-LastEditTime: 2021-11-29 21:52:33
+LastEditTime: 2021-11-30 15:18:52
 Description: base unet decode head
-FilePath: /CVMI_Sementic_Segmentation/model/decode_heads/unet.py
+FilePath: /CVMI_Sementic_Segmentation/model/decode_heads/unet/unet.py
 '''
 from re import S
 from numpy.lib.type_check import imag
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..builder import DECODE_HEAD
+from model.builder import DECODE_HEAD
 
 
 class DoubleConv(nn.Module):

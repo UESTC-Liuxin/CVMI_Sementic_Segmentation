@@ -1,10 +1,10 @@
 Descriptions:
   name: base_segmentation
   version: v1.0
-  date: "20211125"
+  date: "20211130"
 
 Global:
-  work_dir: /home/liuxin/Documents/CVMI_Sementic_Segmentation/log/unet
+  work_dir: /home/liuxin/Documents/CVMI_Sementic_Segmentation/log/deeplab
   log:
     log_level: INFO
   log_config:
@@ -17,10 +17,10 @@ Global:
     - [train, 5]
     - [val, 1]
   distributed: true
-  gpus: 2
-  batch_size: 32
+  gpus: 1
+  batch_size: 16
   num_workers: 4
-  max_epoch: 500
+  max_epoch: 600
   optimizer: 
     name: SGD
     lr: 0.005
@@ -75,7 +75,6 @@ Model:
   sync_BN: true
   backbone:
     name: resnet50
-    output_stride: 32
     replace_stride_with_dilation: [false, true, true]
   neck:
     name: BaseNeck
@@ -86,11 +85,12 @@ Model:
       name: Deeplab
       in_channels: 2048
       num_classes: *num_classes
+      match_block:
+        image_size: *image_size
+        type: "bilinear"
       criterion: 
         name: ImageBasedCrossEntropy2D
-  match_block:
-    image_size: *image_size
-    type: "bilinear"
+
 
 
   

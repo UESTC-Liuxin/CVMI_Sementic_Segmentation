@@ -18,7 +18,7 @@
                 "--master_port=29501",
                 "/home/liuxin/Documents/CVMI_Sementic_Segmentation/tools/train.py",
                 "-c",
-                "/home/liuxin/Documents/CVMI_Sementic_Segmentation/configs/base_demo.yml"
+                "/home/liuxin/Documents/CVMI_Sementic_Segmentation/configs/unet/enc_unet_skmt.yml"
             ]
         }
     ]
