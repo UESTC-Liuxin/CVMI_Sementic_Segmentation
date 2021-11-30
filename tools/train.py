@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-13 15:57:22
 LastEditors: Liu Xin
-LastEditTime: 2021-11-25 16:00:59
+LastEditTime: 2021-11-29 21:40:46
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/tools/train.py
 '''
@@ -19,10 +19,10 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
+
 sys.path.append("/home/liuxin/Documents/CVMI_Sementic_Segmentation")
-from model.builder import build_criterions
 from utils.static_common_utils import set_random_seeds, build_work_dir_suffix
-from utils.ddp import setup_distributed, convert_sync_bn
+from utils.ddp import setup_distributed, convert_sync_bn, mkdirs, MMDistributedDataParallel
 from model import *
 from dataloader import *
 from utils.runner import build_optimizer, EpochBasedRunner, build_evaluator
@@ -66,10 +66,11 @@ def main(args):
         # define network
         model = model.to(device)
         # distributedDataParallel
-        model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
         sync_BN = model_cfg.sync_BN
         if sync_BN:
             model = convert_sync_bn(num_workers, model)
+        else:
+            model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
     else: 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         model = model.to(device)
@@ -92,7 +93,7 @@ def main(args):
     work_dir = global_cfg.work_dir
     work_dir = os.path.join(work_dir, build_work_dir_suffix(global_cfg, data_cfg))
     if not os.path.exists(work_dir):
-        os.makedirs(work_dir)
+        mkdirs(work_dir)
     timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     log_file = os.path.join(work_dir, f'{timestamp}.log')
     logger = get_root_logger(log_file=log_file, **global_cfg.log)
@@ -141,4 +142,3 @@ if __name__ == "__main__":
         '-c', '--cfg_file', default="/home/liuxin/Documents/CVMI_Sementic_Segmentation/configs/base_demo.yml", type=str)
     args = parser.parse_args()
     main(args)
-    

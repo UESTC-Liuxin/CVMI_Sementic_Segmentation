@@ -2,9 +2,9 @@
 Author: Liu Xin
 Date: 2021-11-18 09:58:40
 LastEditors: Liu Xin
-LastEditTime: 2021-11-20 19:05:05
+LastEditTime: 2021-11-29 22:15:03
 Description: file content
-FilePath: /CVMI_Sementic_Segmentation/model/criterions/SE.py
+FilePath: /CVMI_Sementic_Segmentation/model/criterions/SELoss.py
 '''
 # -*- coding:utf-8 -*-
 
@@ -14,9 +14,9 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from model.builder import CRITERION
 
-
+@CRITERION.register_module()
 class SELoss(nn.Module):
-    def __init__(self, num_classes=6):
+    def __init__(self, num_classes=6, *args, **kwargs):
         super(SELoss, self).__init__()
         self.bce = nn.BCELoss()
         self.num_classes = num_classes
@@ -39,24 +39,6 @@ class SELoss(nn.Module):
             tvect[i] = vect
         return tvect
 
-
-class SELayer(nn.Module):
-    def __init__(self, in_channels, out_channels,  n_classes, ):
-        super(SELayer, self).__init__()
-        self.encoding = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 1, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-        )
-        self.avg = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(out_channels, n_classes)
-        
-    def forward(self, x):
-        t = self.encoding(x)
-        t = self.avg(t)
-        t = t.squeeze()
-        out_vec = self.fc(t)
-        return out_vec
     
 
 if __name__ == "__main__":

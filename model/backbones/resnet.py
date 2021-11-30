@@ -129,7 +129,7 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
+    def __init__(self, block, layers, output_strides=[1,2,2,2], num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  BatchNorm=None):
         super(ResNet, self).__init__()
@@ -137,6 +137,7 @@ class ResNet(nn.Module):
             norm_layer = nn.BatchNorm2d
         self._norm_layer = BatchNorm
 
+        assert len(layers) == len(output_strides)
         self.inplanes = 64
         self.dilation = 1
         if replace_stride_with_dilation is None:
@@ -153,12 +154,12 @@ class ResNet(nn.Module):
         self.bn1 = self._norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
+        self.layer1 = self._make_layer(block, 64, layers[0], stride=output_strides[0])
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=output_strides[1],
                                        dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2,
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=output_strides[2],
                                        dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=output_strides[3],
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
@@ -209,14 +210,14 @@ class ResNet(nn.Module):
     def forward(self, input):
         x = self.conv1(input)
         x = self.bn1(x)
-        x0 = x = self.relu(x)
-        x1 = x = self.maxpool(x)
-        x2 = x = self.layer1(x)
-        x3 = x = self.layer2(x)
-        x4 = x = self.layer3(x)
-        x5 = x = self.layer4(x)
+        x = self.relu(x)
+        x0 = x = self.maxpool(x)
+        x1 = x = self.layer1(x)
+        x2 = x = self.layer2(x)
+        x3 = x = self.layer3(x)
+        x4 = x = self.layer4(x)
 
-        return (x5, x4, x3, x2, x1, x0)
+        return (x0, x1, x2, x3,x4)
 
 
 def _resnet(arch, block, layers, BatchNorm, pretrained=True, progress=False, **kwargs):
@@ -229,7 +230,7 @@ def _resnet(arch, block, layers, BatchNorm, pretrained=True, progress=False, **k
 
 
 @BACKBONE.register_module("resnet18")
-def resnet18(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
+def resnet18(BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
     r"""ResNet-18 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -242,7 +243,7 @@ def resnet18(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs)
 
 
 @BACKBONE.register_module("resnet34")
-def resnet34(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
+def resnet34(BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
     r"""ResNet-34 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -255,7 +256,7 @@ def resnet34(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs)
 
 
 @BACKBONE.register_module("resnet50")
-def resnet50(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
+def resnet50(BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
     r"""ResNet-50 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -268,7 +269,7 @@ def resnet50(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs)
 
 
 @BACKBONE.register_module("resnet101")
-def resnet101(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
+def resnet101(BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
     r"""ResNet-101 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -281,7 +282,7 @@ def resnet101(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs
 
 
 @BACKBONE.register_module("resnext50_32x4d")
-def resnext50_32x4d(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
+def resnext50_32x4d(BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
     r"""ResNeXt-50 32x4d model from
     `"Aggregated Residual Transformation for Deep Neural Networks" <https://arxiv.org/pdf/1611.05431.pdf>`_
 
@@ -296,14 +297,14 @@ def resnext50_32x4d(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **
 
 
 @BACKBONE.register_module("wide_resnet50_2")
-def wide_resnet50_2(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
+def wide_resnet50_2(BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
     kwargs['width_per_group'] = 64 * 2
     return _resnet('wide_resnet50_2', Bottleneck, [3, 4, 6, 3], BatchNorm,
                    pretrained, **kwargs)
 
 
 @BACKBONE.register_module("wide_resnet101_2")
-def wide_resnet101_2(output_stride, BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
+def wide_resnet101_2(BatchNorm=nn.BatchNorm2d, pretrained=True, **kwargs):
 
     kwargs['width_per_group'] = 64 * 2
     return _resnet('wide_resnet101_2', Bottleneck, [3, 4, 23, 3],

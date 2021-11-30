@@ -4,7 +4,7 @@ Descriptions:
   date: "20211125"
 
 Global:
-  work_dir: /home/liuxin/Documents/CVMI_Sementic_Segmentation/log/unet
+  work_dir: /home/liuxin/Documents/CVMI_Sementic_Segmentation/log/deeplab
   log:
     log_level: INFO
   log_config:
@@ -20,7 +20,7 @@ Global:
   gpus: 1
   batch_size: 32
   num_workers: 4
-  max_epoch: 500
+  max_epoch: 600
   optimizer: 
     name: SGD
     lr: 0.005
@@ -81,7 +81,7 @@ Model:
   decode_heads:
     trunk_seg_head:
       name: Unet
-      in_channel: 2048
+      in_channels: 2048
       num_classes: *num_classes
       factors: [2, 2, 4, 2]
       criterion: 

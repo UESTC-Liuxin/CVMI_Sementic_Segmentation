@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-16 16:51:42
 LastEditors: Liu Xin
-LastEditTime: 2021-11-25 16:07:16
+LastEditTime: 2021-11-29 21:44:45
 Description: compose all sub-model to a segmentation pipeline
 FilePath: /CVMI_Sementic_Segmentation/model/compose.py
 '''
@@ -27,20 +27,15 @@ class Compose(nn.Module):
 
     Args:
         nn ([type]): [description]
+        attention_hooks: 将特定的中间输出取出至特定的层
     """
-    def __init__(self, match_cfg,  backbone, neck, decode_heads:nn.ModuleDict, criterion):
+    def __init__(self, backbone, neck, decode_heads:nn.ModuleDict):
         super(Compose, self).__init__()
         self.backbone = backbone
         self.neck = neck
         self.decode_heads = decode_heads
-        self.match_block = nn.ModuleDict()
         del self.backbone.fc
-        # 由于不知道会有多少个head
-        for key, head in self.decode_heads.items():
-            if "seg" in key:
-                self.match_block[key] = MatchBlock(**match_cfg)
-        self.criterion = criterion
-    
+        
     def forward(self, data_batch, optimizer, train_mode,  **kwargs):
         if train_mode:
             outputs  = self.forward_train(**data_batch)
@@ -59,20 +54,19 @@ class Compose(nn.Module):
         head_outs = dict()
         features = self.backbone(data_batch["image"] )
         features = self.neck(features)
-        for key, head in self.decode_heads.items():
-            out = head(features)
-            # 只有*SegHead才需要进行尺寸匹配
-            if "seg" in key:
-                out = self.match_block[key] (out)
-                loss = self.criterion[key + "_criterion"](out, data_batch["mask"])
-                losses[key + "_loss"] = loss
-                if "loss" not in losses:
-                    losses.setdefault("loss", loss)
-                else:
-                    losses["loss"] += loss
-            head_outs[key+"_out"] =out
-            log_vars = self._parse_losses(losses)
-            
+        for head_key, head in self.decode_heads.items():
+            results = head(features, data_batch)
+            for key, value in results.items():
+                if "out" in key:
+                    head_outs[head_key + "_" + key] = value
+                if "loss" in key:
+                    losses[head_key + "_" + key] = value
+                    if "loss" not in losses:
+                        losses.setdefault("loss", value)
+                    else:
+                        losses["loss"] += value
+                        
+        log_vars = self._parse_losses(losses)
         outputs = dict(
                 log_vars=log_vars,
                 num_samples=len(data_batch['image'].data),
@@ -91,20 +85,21 @@ class Compose(nn.Module):
         head_outs = dict()
         features = self.backbone(data_batch["image"] )
         features = self.neck(features)
-        for key, head in self.decode_heads.items():
-            out = head(features)
-            # 只有*SegHead才需要进行尺寸匹配
-            if "seg" in key and "trunk" in key:
-                out = self.match_block[key] (out)
-                loss = self.criterion[key + "_criterion"](out, data_batch["mask"])
-                losses[key + "_loss"] = loss
-                if "loss" not in losses:
-                    losses.setdefault("loss", loss)
-                else:
-                    losses["loss"] += loss
-            head_outs[key+"_out"] =out
-            log_vars = self._parse_losses(losses)
-            
+        for head_key, head in self.decode_heads.items():
+            if "trunk" not in head_key:
+                continue
+            results = head(features, data_batch)
+            for key, value in results.items():
+                if "out" in key:
+                    head_outs[head_key + "_" + key] = value
+                if "loss" in key:
+                    losses[head_key + "_" + key] = value
+                    if "loss" not in losses:
+                        losses.setdefault("loss", value)
+                    else:
+                        losses["loss"] += value
+                        
+        log_vars = self._parse_losses(losses)
         outputs = dict(
                 log_vars=log_vars,
                 num_samples=len(data_batch['image'].data),

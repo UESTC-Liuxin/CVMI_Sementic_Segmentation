@@ -2,10 +2,11 @@
 Author: Liu Xin
 Date: 2021-11-21 18:01:16
 LastEditors: Liu Xin
-LastEditTime: 2021-11-23 20:58:06
+LastEditTime: 2021-11-26 10:35:55
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/utils/runner/hooks/optimizer.py
 '''
+from subprocess import run
 from torch.nn.utils import clip_grad
 from utils.runner.hooks.hook import HOOKS, Hook
 
@@ -24,6 +25,10 @@ class OptimizerHook(Hook):
     def after_train_iter(self, runner):
         runner.optimizer.zero_grad()
         runner.outputs['loss'].backward()
+        # for name, param in runner.model.named_parameters():
+        #     if param.grad is None:
+        #         del param
+            
         if self.grad_clip is not None:
             grad_norm = self.clip_grads(runner.model.parameters())
             if grad_norm is not None:

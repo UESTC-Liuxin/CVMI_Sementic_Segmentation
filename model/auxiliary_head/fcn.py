@@ -16,7 +16,7 @@ class FCN(nn.Module):
 
         super(FCN, self).__init__()
         self.output_stride = output_stride
-        self.last_conv = nn.Sequential(nn.Conv2d(in_channel, 256, kernel_size=3, stride=1, padding=1, bias=False),
+        self.last_conv = nn.Sequential(nn.Conv2d(in_channels, 256, kernel_size=3, stride=1, padding=1, bias=False),
                                        BatchNorm(256),
                                        nn.ReLU(),
                                        nn.Dropout(0.5),

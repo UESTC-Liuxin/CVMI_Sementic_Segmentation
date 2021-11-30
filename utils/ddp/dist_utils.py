@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-21 21:14:29
 LastEditors: Liu Xin
-LastEditTime: 2021-11-23 16:30:31
+LastEditTime: 2021-11-26 12:37:59
 Description: file content
 FilePath: /CVMI_Sementic_Segmentation/utils/ddp/dist_utils.py
 '''
@@ -91,7 +91,8 @@ def convert_sync_bn(num_workers, model, ranks_group=None):
     ddp_sync_bn_network = torch.nn.parallel.DistributedDataParallel(
         sync_bn_network,
         device_ids=[local_rank],
-        output_device=local_rank
+        output_device=local_rank,
+        find_unused_parameters=True
         )
     return ddp_sync_bn_network
     
@@ -149,5 +150,6 @@ def collect_results_gpu(result_part, size=None):
         ordered_results = ordered_results[:size]
         return ordered_results
     
-    
-    
+@master_only
+def mkdirs(*args, **kwargs):
+    os.makedirs(*args, **kwargs)

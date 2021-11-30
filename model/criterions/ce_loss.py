@@ -18,7 +18,7 @@ class BasicLossModule(nn.Module):
     """
     Basic loss module, please do not call this module
     Params:
-        ignore_index: int (default 255). Categories to be ignored of `target`
+        ignore_index: int (default 255). Categories to be ignored of `mask`
         custom_weight: numpy array or list (default None). The weight of each category. For example,
             [0.2, 0.1, ..., 0.1], if `custom_weight` is not None, `batch_weight` will be ignored
         batch_weight: bool (default True). If true, the whole batch is used to calculate weights
@@ -27,7 +27,7 @@ class BasicLossModule(nn.Module):
     """
 
     def __init__(self, ignore_index=255, custom_weight=None, batch_weight=False,
-                 size_average=True, batch_average=True, upper_bound=1.0):
+                 size_average=True, batch_average=True, upper_bound=1.0, *args, **kwargs):
         super(BasicLossModule, self).__init__()
         # Init custom weight
         if custom_weight is not None:
@@ -43,14 +43,14 @@ class BasicLossModule(nn.Module):
         self.batch_average = batch_average
         self.upper_bound = upper_bound
 
-    def calculate_weights(self, target, num_classes):
+    def calculate_weights(self, mask, num_classes):
         """
         Calculate weights of classes based on the training crop
         Params:
-            target: 3-D torch.Tensor. The input target which shape is (n, h, w)
+            mask: 3-D torch.Tensor. The input mask which shape is (n, h, w)
             num_classes: int. The number of classes
         """
-        hist = torch.histc(target, bins=num_classes, min=0, max=num_classes - 1)
+        hist = torch.histc(mask, bins=num_classes, min=0, max=num_classes - 1)
         hist = hist / hist.sum()
         hist = ((hist != 0) * self.upper_bound * (1 - hist)) + 1
         return hist
@@ -60,7 +60,7 @@ class CrossEntropy2D(BasicLossModule):
     """
     The 2D cross entropy loss, note that the module must run on `cuda`.
     Params:
-        ignore_index: int (default 255). Categories to be ignored of `target`
+        ignore_index: int (default 255). Categories to be ignored of `mask`
         custom_weight: numpy array or list (default None). The weight of each category. For example,
             [0.2, 0.1, ..., 0.1], if `custom_weight` is not None, `batch_weight` will be ignored
         batch_weight: bool (default True). If true, the whole batch is used to calculate weights
@@ -68,15 +68,15 @@ class CrossEntropy2D(BasicLossModule):
         batch_average: bool (default True). Loss will be divided by (n)
     Forward:
         logit: 4-D torch.Tensor. The predict result without `sigmoid/softmax`, which shape is (n, c, h, w)
-        target: 3-D torch.Tensor. The input target which shape is (n, h, w)
+        mask: 3-D torch.Tensor. The input mask which shape is (n, h, w)
         Note that there's no need to use `softmax/sigmoid` for `logit` before calling this loss module.
     """
 
     def __init__(self, *args, **kwargs):
         super(CrossEntropy2D, self).__init__(*args, **kwargs)
 
-    def forward(self, logit, target):
-        assert len(logit.shape) == 4 and len(target.shape) == 3
+    def forward(self, logit, mask, **kwargs):
+        assert len(logit.shape) == 4 and len(mask.shape) == 3
         # Get the size of `logit`
         n, c, h, w = logit.size()
         # Init weight
@@ -84,11 +84,11 @@ class CrossEntropy2D(BasicLossModule):
             weight = self.custom_weight.to(logit.device)
         else:
             if self.batch_weight:
-                weight = self.calculate_weights(target, c).to(logit.device)
+                weight = self.calculate_weights(mask, c).to(logit.device)
             else:
                 weight = None
         # `size_average` and `reduce` of `nn.CrossEntropyLoss` are in the process of being deprecated
-        loss = F.cross_entropy(logit, target.long(), weight, ignore_index=self.ignore_index, reduction='sum')
+        loss = F.cross_entropy(logit, mask.long(), weight, ignore_index=self.ignore_index, reduction='sum')
         # loss will be divided by (h * w)
         if self.size_average:
             loss /= (h * w)
@@ -103,7 +103,7 @@ class BinaryCrossEntropy2D(BasicLossModule):
     The binary 2D cross entropy loss, note that the module must run on `cuda`.
     Note that `F.binary_cross_entropy_with_logits` do not support `ignore_index`
     Params:
-        ignore_index: int (default 255). Categories to be ignored of `target`
+        ignore_index: int (default 255). Categories to be ignored of `mask`
         custom_weight: numpy array or list (default None). The weight of each category. For example,
             [0.2, 0.8], if `custom_weight` is not None, `batch_weight` will be ignored
         batch_weight: bool (default True). If true, the whole batch is used to calculate weights
@@ -112,15 +112,15 @@ class BinaryCrossEntropy2D(BasicLossModule):
     Forward:
         logit: 3-D or 4-D torch.Tensor. The predict result without `sigmoid/softmax`, if `logit` is
             3-D/4D Tensor, the shape of `logit` should be (n,h,w)/(n,c,h,w) respectively
-        target: torch.Tensor. The input target which shape should be same as `logit`
+        mask: torch.Tensor. The input mask which shape should be same as `logit`
         Note that there's no need to use `softmax/sigmoid` for `logit` before calling this loss module.
     """
 
     def __init__(self, *args, **kwargs):
         super(BinaryCrossEntropy2D, self).__init__(*args, **kwargs)
 
-    def forward(self, logit, target):
-        assert len(logit.shape) == len(target.shape)
+    def forward(self, logit, mask, **kwargs):
+        assert len(logit.shape) == len(mask.shape)
         # Get the size of `logit`
         if len(logit.shape) == 4:
             n, c, h, w = logit.size()
@@ -131,17 +131,17 @@ class BinaryCrossEntropy2D(BasicLossModule):
         # Reshape as (n, h*w*c)/(n, h*w)
         if len(logit.shape) == 4:
             logit_rsp = logit.transpose(1, 2).transpose(2, 3).reshape(1, -1)
-            target_rsp = target.transpose(1, 2).transpose(2, 3).reshape(1, -1)
+            mask_rsp = mask.transpose(1, 2).transpose(2, 3).reshape(1, -1)
         else:
             logit_rsp = logit.reshape(1, -1)
-            target_rsp = target.reshape(1, -1)
+            mask_rsp = mask.reshape(1, -1)
         # Get positive/negative/ignore index
-        pos_index = (target_rsp == 1)
-        neg_index = (target_rsp == 0)
-        # ign_index = (target_rsp == self.ignore_index)
-        ign_index = (target_rsp > 1)
-        # Convert `target_rsp[ign_index]` to `0` first
-        target_rsp[ign_index] = 0
+        pos_index = (mask_rsp == 1)
+        neg_index = (mask_rsp == 0)
+        # ign_index = (mask_rsp == self.ignore_index)
+        ign_index = (mask_rsp > 1)
+        # Convert `mask_rsp[ign_index]` to `0` first
+        mask_rsp[ign_index] = 0
         # Convert `positive/negative/ignore index` as `bool`
         pos_index = pos_index.data.cpu().numpy().astype(bool)
         neg_index = neg_index.data.cpu().numpy().astype(bool)
@@ -168,7 +168,7 @@ class BinaryCrossEntropy2D(BasicLossModule):
             else:
                 weight = None
         # Calculate binary cross entropy loss
-        loss = F.binary_cross_entropy_with_logits(logit_rsp, target_rsp, weight=weight, reduction='sum')
+        loss = F.binary_cross_entropy_with_logits(logit_rsp, mask_rsp, weight=weight, reduction='sum')
         # loss will be divided by (h * w)
         if self.size_average:
             loss /= (h * w)
@@ -183,7 +183,7 @@ class ImageBasedCrossEntropy2D(BasicLossModule):
     """
     Image Weighted Cross Entropy Loss
     Params:
-        ignore_index: int (default 255). Categories to be ignored of `target`
+        ignore_index: int (default 255). Categories to be ignored of `mask`
         custom_weight: numpy array or list (default None). The weight of each category. For example,
             [0.2, 0.1, ..., 0.1], if `custom_weight` is not None, `batch_weight` will be ignored
         batch_weight: bool (default True). If true, the whole batch is used to calculate weights
@@ -191,15 +191,15 @@ class ImageBasedCrossEntropy2D(BasicLossModule):
         batch_average: bool (default True). Loss will be divided by (n)
     Forward:
         logit: 4-D torch.Tensor. The predict result without `sigmoid/softmax`, which shape is (n, c, h, w)
-        target: 3-D torch.Tensor. The input target which shape is (n, h, w)
+        mask: 3-D torch.Tensor. The input mask which shape is (n, h, w)
         Note that there's no need to use `softmax/sigmoid` for `logit` before calling this loss module.
     """
 
     def __init__(self, *args, **kwargs):
         super(ImageBasedCrossEntropy2D, self).__init__(*args, **kwargs)
 
-    def forward(self, logit, target):
-        assert len(logit.shape) == 4 and len(target.shape) == 3
+    def forward(self, logit, mask, **kwargs):
+        assert len(logit.shape) == 4 and len(mask.shape) == 3
         # Get the size of `logit`
         n, c, h, w = logit.size()
         # Init weight
@@ -207,11 +207,11 @@ class ImageBasedCrossEntropy2D(BasicLossModule):
             weight = self.custom_weight.to(logit.device)
         else:
             if self.batch_weight:
-                weight = self.calculate_weights(target, c).to(logit.device)
+                weight = self.calculate_weights(mask, c).to(logit.device)
             else:
                 weight = None
         # Calculate the loss
-        loss = F.nll_loss(F.log_softmax(logit, dim=1), target.long(), weight,
+        loss = F.nll_loss(F.log_softmax(logit, dim=1), mask.long(), weight,
                           ignore_index=self.ignore_index, reduction='sum')
         # loss will be divided by (h * w)
         if self.size_average:
@@ -228,7 +228,7 @@ class LabelSmoothCrossEntropy(BasicLossModule):
     """
     Labels Smooth Loss for classification
     Params:
-        ignore_index: int (default 255). Categories to be ignored of `target`
+        ignore_index: int (default 255). Categories to be ignored of `mask`
         custom_weight: numpy array or list (default None). The weight of each category. For example,
             [0.2, 0.1, ..., 0.1], if `custom_weight` is not None, `batch_weight` will be ignored
         batch_weight: bool (default True). If true, the whole batch is used to calculate weights
@@ -236,7 +236,7 @@ class LabelSmoothCrossEntropy(BasicLossModule):
         batch_average: bool (default True). Loss will be divided by (n)
     Forward:
         logit: 2-D torch.Tensor. The predict result without `sigmoid/softmax`, which shape is (n, c)
-        target: 1-D torch.Tensor. The input target which shape is (n)
+        mask: 1-D torch.Tensor. The input mask which shape is (n)
         Note that there's no need to use `softmax/sigmoid` for `logit` before calling this loss module.
     """
 
@@ -245,16 +245,16 @@ class LabelSmoothCrossEntropy(BasicLossModule):
         self.epsilon = epsilon
         self.log_softmax = nn.LogSoftmax(dim=1)
 
-    def forward(self, logit, target):
+    def forward(self, logit, mask, **kwargs):
 
-        assert len(logit.shape) == 2 and len(target.shape) == 1
+        assert len(logit.shape) == 2 and len(mask.shape) == 1
 
         # Get the size of `logit`
         n, c = logit.size()
 
         # Get `ign_index` and `pos_index`
-        ign_index = (target == self.ignore_index)
-        pos_index = (target != self.ignore_index)
+        ign_index = (mask == self.ignore_index)
+        pos_index = (mask != self.ignore_index)
         pos_index = pos_index.data.cpu().numpy().astype(bool)
 
         # Init weight
@@ -264,22 +264,22 @@ class LabelSmoothCrossEntropy(BasicLossModule):
             weight = torch.from_numpy(weight).to(logit.device)
         else:
             if self.batch_weight:
-                weight[pos_index, :] = self.calculate_weights(target, c).data.cpu().numpy()
+                weight[pos_index, :] = self.calculate_weights(mask, c).data.cpu().numpy()
                 weight = torch.from_numpy(weight).to(logit.device)
             else:
                 weight = None
 
-        # Convert 1-D `target` Tensor to 2-D `onehot` Tensor
-        target_clamps = target.clone()
-        target_clamps[ign_index] = c - 1
-        target_onehot = F.one_hot(target_clamps.long(), c)  # n,c
+        # Convert 1-D `mask` Tensor to 2-D `onehot` Tensor
+        mask_clamps = mask.clone()
+        mask_clamps[ign_index] = c - 1
+        mask_onehot = F.one_hot(mask_clamps.long(), c)  # n,c
 
-        # Soft target and log logit
-        target_soft = (1 - self.epsilon) * target_onehot + self.epsilon / c
+        # Soft mask and log logit
+        mask_soft = (1 - self.epsilon) * mask_onehot + self.epsilon / c
         log_logit = self.log_softmax(logit)
 
         # Get sum of loss
-        loss = -target_soft * log_logit
+        loss = -mask_soft * log_logit
         if weight is not None:
             loss = loss * weight
         loss = loss.sum()
@@ -300,7 +300,7 @@ class LabelSmoothCrossEntropy2D(LabelSmoothCrossEntropy):
     """
     Labels Smooth Loss 2D for segmentation
     Params:
-        ignore_index: int (default 255). Categories to be ignored of `target`
+        ignore_index: int (default 255). Categories to be ignored of `mask`
         custom_weight: numpy array or list (default None). The weight of each category. For example,
             [0.2, 0.1, ..., 0.1], if `custom_weight` is not None, `batch_weight` will be ignored
         batch_weight: bool (default True). If true, the whole batch is used to calculate weights
@@ -308,17 +308,17 @@ class LabelSmoothCrossEntropy2D(LabelSmoothCrossEntropy):
         batch_average: bool (default True). Loss will be divided by (n)
     Forward:
         logit: 4-D torch.Tensor. The predict result without `sigmoid/softmax`, which shape is (n, c, h, w)
-        target: 3-D torch.Tensor. The input target which shape is (n, h, w)
+        mask: 3-D torch.Tensor. The input mask which shape is (n, h, w)
         Note that there's no need to use `softmax/sigmoid` for `logit` before calling this loss module.
     """
 
-    def forward(self, logit, target):
-        assert len(logit.shape) == 4 and len(target.shape) == 3
+    def forward(self, logit, mask, **kwargs):
+        assert len(logit.shape) == 4 and len(mask.shape) == 3
         # Get the size of `logit`
         n, c, h, w = logit.size()
         # Get `ign_index` and `pos_index`
-        ign_index = (target == self.ignore_index)
-        pos_index = (target != self.ignore_index)
+        ign_index = (mask == self.ignore_index)
+        pos_index = (mask != self.ignore_index)
         pos_index = pos_index.data.cpu().numpy().astype(bool)  # n,h,w
         # Init weight
         weight = torch.Tensor(logit.size()).fill_(0).numpy().transpose((0, 2, 3, 1))  # n,h,w,c
@@ -328,24 +328,24 @@ class LabelSmoothCrossEntropy2D(LabelSmoothCrossEntropy):
             weight = torch.from_numpy(weight).to(logit.device)
         else:
             if self.batch_weight:
-                weight[pos_index] = self.calculate_weights(target, c).data.cpu().numpy()
+                weight[pos_index] = self.calculate_weights(mask, c).data.cpu().numpy()
                 weight = weight.transpose((0, 3, 1, 2))  # n,c,h,w
                 weight = torch.from_numpy(weight).to(logit.device)
             else:
                 weight = None
 
-        # Convert 1-D `target` Tensor to 2-D `onehot` Tensor
-        target_clamps = target.clone()
-        target_clamps[ign_index] = c - 1
-        target_onehot = F.one_hot(target_clamps.long(), c)  # n,h,w,c
+        # Convert 1-D `mask` Tensor to 2-D `onehot` Tensor
+        mask_clamps = mask.clone()
+        mask_clamps[ign_index] = c - 1
+        mask_onehot = F.one_hot(mask_clamps.long(), c)  # n,h,w,c
 
-        # Soft target and log logit
-        target_soft = (1 - self.epsilon) * target_onehot + self.epsilon / c
-        target_soft = target_soft.permute((0, 3, 1, 2))  # n,c,h,w
+        # Soft mask and log logit
+        mask_soft = (1 - self.epsilon) * mask_onehot + self.epsilon / c
+        mask_soft = mask_soft.permute((0, 3, 1, 2))  # n,c,h,w
         log_logit = self.log_softmax(logit)
 
         # Get sum of loss
-        loss = -target_soft * log_logit
+        loss = -mask_soft * log_logit
         if weight is not None:
             loss = loss * weight
         loss = loss.sum()
@@ -366,7 +366,7 @@ class BoundariesRelaxation2D(BasicLossModule):
     The boundaries relaxation loss, which details can be seen here:
     https://ieeexplore.ieee.org/abstract/document/8954327
     Params:
-        ignore_index: int (default 255). Categories to be ignored of `target`
+        ignore_index: int (default 255). Categories to be ignored of `mask`
         custom_weight: numpy array or list (default None). The weight of each category. For example,
             [0.2, 0.1, ..., 0.1], if `custom_weight` is not None, `batch_weight` will be ignored
         batch_weight: bool (default True). If true, the whole batch is used to calculate weights
@@ -376,7 +376,7 @@ class BoundariesRelaxation2D(BasicLossModule):
         stride: int, list or tuple (default 1). The strode of slide window
     forward:
         logit: 4-D torch.Tensor. The predict result without `sigmoid/softmax`, which shape is (n, c, h, w)
-        target: 3-D torch.Tensor. The input target which shape is (n, h, w)
+        mask: 3-D torch.Tensor. The input mask which shape is (n, h, w)
         Note that there's no need to use `softmax/sigmoid` for `logit` before calling this loss module.
     """
 
@@ -400,7 +400,7 @@ class BoundariesRelaxation2D(BasicLossModule):
         self.stride = stride
         self.pool2d = nn.AvgPool2d(kernel_size=self.window_size, stride=self.stride)
 
-    def forward(self, logit, target):
+    def forward(self, logit, mask, **kwargs):
         # Get the size of `logit`
         n, c, h, w = logit.size()
         # Init weight
@@ -408,24 +408,24 @@ class BoundariesRelaxation2D(BasicLossModule):
             weight = self.custom_weight.to(logit.device)
         else:
             if self.batch_weight:
-                weight = self.calculate_weights(target, c).to(logit.device)
+                weight = self.calculate_weights(mask, c).to(logit.device)
             else:
                 weight = None
         # Get soft output of `logit`
         logit_soft = F.softmax(logit, dim=1)
         # Get `ignore_index`
-        ignore_index = (target == self.ignore_index)
-        # Convert 3-D `target` Tensor to 4-D `onehot` Tensor
-        target_clamps = target.clone()
-        target_clamps[ignore_index] = c - 1
-        target_onehot = F.one_hot(target_clamps.long(), c)  # n,h,w,c
-        target_onehot[ignore_index] = 0  # n,h,w,c
-        target_onehot_trans = target_onehot.transpose(2, 3).transpose(1, 2)  # n,c,h,w
-        # Get the boundaries relaxation result of `logit` and `target`
+        ignore_index = (mask == self.ignore_index)
+        # Convert 3-D `mask` Tensor to 4-D `onehot` Tensor
+        mask_clamps = mask.clone()
+        mask_clamps[ignore_index] = c - 1
+        mask_onehot = F.one_hot(mask_clamps.long(), c)  # n,h,w,c
+        mask_onehot[ignore_index] = 0  # n,h,w,c
+        mask_onehot_trans = mask_onehot.transpose(2, 3).transpose(1, 2)  # n,c,h,w
+        # Get the boundaries relaxation result of `logit` and `mask`
         logit_br = self.pool2d(logit_soft)
-        target_br = self.pool2d(target_onehot_trans.float())
+        mask_br = self.pool2d(mask_onehot_trans.float())
         # Get loss, note that the loss' lower bound is 0
-        loss = - target_br * (torch.log(logit_br + 1e-14) - torch.log(target_br + 1e-14))
+        loss = - mask_br * (torch.log(logit_br + 1e-14) - torch.log(mask_br + 1e-14))
         # Get new loss if `weight` is not None
         if weight is not None:
             weight_matrix = weight.unsqueeze(0).unsqueeze(2).unsqueeze(3)  # 1,c,1,1

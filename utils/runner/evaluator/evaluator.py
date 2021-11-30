@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-23 10:24:00
 LastEditors: Liu Xin
-LastEditTime: 2021-11-25 11:52:52
+LastEditTime: 2021-11-26 10:52:23
 Description: 评估方法
 FilePath: /CVMI_Sementic_Segmentation/utils/runner/evaluator/evaluator.py
 '''
@@ -125,9 +125,15 @@ class BaseEvaluator(object):
 
 
     @master_only
-    def add_batch(self, mask, pred_image):
+    def add_batch(self, matrix):
+        self.confusion_matrix += matrix
+    
+    
+    def get_matrix(self, mask, pred_image):
         assert mask.shape == pred_image.shape
-        self.confusion_matrix += self._generate_matrix(mask, pred_image)
+        return self._generate_matrix(mask, pred_image)
+        
+        
 
 if __name__ == "__main__":
     evaluator = BaseEvaluator(11, ["mIou"])

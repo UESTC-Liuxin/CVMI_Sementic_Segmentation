@@ -3,7 +3,7 @@ Descriptions:
   version: v2.0
 
 Global:
-  work_dir: /home/liuxin/Documents/CVMI_Sementic_Segmentation/log/base_demo
+  work_dir: /home/liuxin/Documents/CVMI_Sementic_Segmentation/log/encnet
   log:
     log_level: INFO
   log_config:
@@ -13,11 +13,11 @@ Global:
     interval: 1
     by_epoch: true
   workflow: 
-    - [train, 1]
+    - [train, 5]
     - [val, 1]
   distributed: true
   gpus: 1
-  batch_size: 4
+  batch_size: 8
   num_workers: 4
   max_epoch: 300
   optimizer: 
@@ -73,11 +73,14 @@ Model:
   sync_BN: true
   backbone:
     name: resnet50
+    replace_stride_with_dilation: [false, true, true]
   neck:
-    name: Identity
+    name: BaseNeck
+    # backbone features to 
+    feature_indexes: [1,2,3,4]
   decode_heads:
     trunk_seg_head:
-      name: Unet
+      name: EncNet
       in_channels: 2048
       num_classes: *num_classes
       factors: [2, 2, 4, 2]
@@ -85,7 +88,8 @@ Model:
         image_size: *image_size
         type: "bilinear"
       criterion: 
-        name: ImageBasedCrossEntropy2D
+        name: encnet_loss
+        num_classes: *num_classes
 
 
 

@@ -2,7 +2,7 @@
 Author: Liu Xin
 Date: 2021-11-15 15:40:31
 LastEditors: Liu Xin
-LastEditTime: 2021-11-23 18:26:49
+LastEditTime: 2021-11-29 21:52:33
 Description: base unet decode head
 FilePath: /CVMI_Sementic_Segmentation/model/decode_heads/unet.py
 '''
@@ -90,31 +90,30 @@ class OutConv(nn.Module):
 
 @DECODE_HEAD.register_module("Unet")
 class Unet(nn.Module):
-    def __init__(self, in_channel, num_classes, factors,  bilinear=False):
+    def __init__(self, in_channels, num_classes, factors,  criterion, match_block, bilinear=False):
         super(Unet, self).__init__()
-        self.in_channel = in_channel
+        self.in_channels = in_channels
         self.num_classes = num_classes
         self.bilinear = bilinear
         self.ups = nn.ModuleList()
-        out_channel = in_channel
+        out_channel = in_channels
         for i in range(4):
             out_channel = out_channel // factors[i]
-            self.ups.append(Up(in_channel, out_channel, bilinear))
-            in_channel = out_channel
+            self.ups.append(Up(in_channels, out_channel, bilinear))
+            in_channels = out_channel
         self.outc = OutConv(out_channel, num_classes)
+        
+        self.criterion = criterion
+        self.match_block = match_block
 
-    def forward(self, features):
-        [x5, x4, x3, x2, x1, x0] = features
-        x = self.ups[0](x5, x4)
-        x = self.ups[1](x, x3)
-        x = self.ups[2](x, x2)
-        x = self.ups[3](x, x1)
-        out = self.outc(x)
+    def forward(self, features, data_batch):
+        [x0, x1, x2, x3, x4] = features
+        x = self.ups[0](x4, x3)
+        x = self.ups[1](x, x2)
+        x = self.ups[2](x, x1)
+        x = self.ups[3](x, x0)
+        base_out = self.outc(x)
+        out = self.match_block(base_out)
+        loss = self.criterion(out, data_batch["mask"])
+        return {"seg_out":out, "loss":loss}
 
-        return out
-
-
-if __name__ == "__main__":
-    image = torch.randn(4, 3, 512, 512)
-    model = UNet(3, 11)
-    model(image)
